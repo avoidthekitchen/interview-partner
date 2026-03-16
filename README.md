@@ -6,5 +6,5 @@ There are 1,000 of user interview note taking apps, but this one is mine; it has
 - Live voice to text transcription with speaker diarization to automatically distinguish between interviewer and interviewee
 - On device transcription for privacy and reliability when interviewing without reliable connectivity
 - Provide a loose interview script with key questions to answer, and allow the interviewer to easily track answered questions live so they know if they are on track during a timeboxed interview conversation
-- Optionally provide the ability for a hosted LLM provider (OpenAI, Anthropic, etc) to read the transcript and assist with tracking which questions have been answered (1-10 scale), and summmarize findings after the interview is done.   
+- Optionally provide the ability for a hosted LLM provider (OpenAI, Anthropic, etc) to read the transcript and assist with tracking which questions have been answered (1-10 scale), and summarize findings after the interview is done.   
 - iOS / MacOS clients first
