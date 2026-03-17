@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "rpi-implement-plan": {
+      "source": "avoidthekitchen/agent-agnostic-skills",
+      "sourceType": "github",
+      "computedHash": "6ba9738cc9b2481a71a8ba3976a060bf0fa8af4e8b4372c1f3a2b128c2990474"
+    },
+    "rpi-plan": {
+      "source": "avoidthekitchen/agent-agnostic-skills",
+      "sourceType": "github",
+      "computedHash": "945896bebc9444d307762bacb87c27b3b37de06472fa3ade65f0614a2697dfa6"
+    },
+    "rpi-research": {
+      "source": "avoidthekitchen/agent-agnostic-skills",
+      "sourceType": "github",
+      "computedHash": "6c05550094174f812e7806adac57fca9cdd59239b80e761dd78ccec5de4b930c"
+    }
+  }
+}
