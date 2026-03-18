@@ -160,17 +160,32 @@ Ordered by "what blocks everything else."
 
 This is the only sprint where you build something you'll throw away. The deliverable is confidence, not code. **Do not create the four-package structure yet** — that comes in Sprint 1. A premature scaffold with an unvalidated audio pipeline is wasted scaffolding.
 
-- [ ] Xcode project: single SwiftUI app target, iOS 17 minimum, SwiftData enabled
-- [ ] Add FluidAudio as Swift Package dependency
-- [ ] Single throwaway view: tap → mic starts → FluidAudio transcribes → text appears on screen
-- [ ] Wire `setPartialCallback`: in-progress text updates a `@State` string
-- [ ] Wire `setEouCallback`: finalized turns append to a `[TranscriptTurn]` array
-- [ ] Verify diarization output: does EOU result carry a speaker ID? What's the type?
-- [ ] Confirm `AVAudioSession` background mode: lock screen mid-transcription, audio continues
-- [ ] Verify `UIBackgroundModes: audio` in `Info.plist` file directly (not just Capabilities UI)
-- [ ] Decision confirmed: `@Observable` + SwiftData — no going back
+- [x] Xcode project: single SwiftUI app target, iOS 17 minimum, SwiftData enabled
+- [x] Add FluidAudio as Swift Package dependency
+- [x] Single throwaway view: tap → mic starts → FluidAudio transcribes → text appears on screen
+- [x] Wire `setPartialCallback`: in-progress text updates a `@State` string
+- [x] Wire `setEouCallback`: finalized turns append to a `[TranscriptTurn]` array
+- [x] Verify diarization output: does EOU result carry a speaker ID? What's the type?
+- [x] Confirm `AVAudioSession` background mode: lock screen mid-transcription, audio continues
+- [x] Verify `UIBackgroundModes: audio` in `Info.plist` file directly (not just Capabilities UI)
+- [x] Decision confirmed: `@Observable` + SwiftData — no going back
 
-> **Exit criterion:** Tap a button. Speak two sentences as two "speakers." See labeled transcript turns (Speaker A / Speaker B) on screen. Nothing else. If this takes >2 days, revise your timeline before Sprint 1.
+> **Sprint 0 note:** Current `FluidAudio` `StreamingEouAsrManager` callbacks expose transcript strings only; they do not expose speaker IDs. Sprint 0 therefore proves live transcription only. Labeled speaker turns move to Sprint 0.5.
+
+> **Verification note:** `xcodebuildmcp` simulator build and build-and-run succeed on the installed iPhone 17 simulator runtime. Package compilation and `Info.plist` validation are complete. Manual simulator verification on March 18, 2026 confirmed transcription can continue while the screen is locked mid-session. EOU finalization remains rough and should be refined in later sprint work.
+
+> **Exit criterion:** Tap a button. Speak and see live partial text plus finalized transcript turns on screen. Nothing else. If this takes >2 days, revise your timeline before Sprint 1.
+
+### Sprint 0.5 — Diarization Spike
+**Goal: Prototype separate diarization integration for labeled turns before Sprint 2 hardens the session pipeline**
+
+- [ ] Evaluate separate live diarization path with `LSEENDDiarizer` or `SortformerDiarizer`
+- [ ] Determine how diarization timestamps align with `StreamingEouAsrManager` finalized transcript strings
+- [ ] Prototype a temporary mapping from diarization segments to transcript turns for `Speaker A / Speaker B`
+- [ ] Re-test background performance with both ASR and diarization active
+- [ ] Decide whether labeled live turns are viable for Sprint 2 or should fall back to unlabeled/edited-later transcript in v1
+
+> **Exit criterion:** Clear recommendation, backed by a working spike or explicit failure notes, for how Sprint 2 should handle live speaker labeling.
 
 ---
 
