@@ -179,11 +179,19 @@ This is the only sprint where you build something you'll throw away. The deliver
 ### Sprint 0.5 — Diarization Spike
 **Goal: Prototype separate diarization integration for labeled turns before Sprint 2 hardens the session pipeline**
 
-- [ ] Evaluate separate live diarization path with `LSEENDDiarizer` or `SortformerDiarizer`
-- [ ] Determine how diarization timestamps align with `StreamingEouAsrManager` finalized transcript strings
-- [ ] Prototype a temporary mapping from diarization segments to transcript turns for `Speaker A / Speaker B`
+- [x] Evaluate separate live diarization path with `LSEENDDiarizer` or `SortformerDiarizer`
+- [x] Determine how diarization timestamps align with `StreamingEouAsrManager` finalized transcript strings
+- [x] Prototype a temporary mapping from diarization segments to transcript turns for `Speaker A / Speaker B`
 - [ ] Re-test background performance with both ASR and diarization active
-- [ ] Decide whether labeled live turns are viable for Sprint 2 or should fall back to unlabeled/edited-later transcript in v1
+- [x] Decide whether labeled live turns are viable for Sprint 2 or should fall back to unlabeled/edited-later transcript in v1
+
+> **Sprint 0.5 note:** The current `FluidAudio` checkout exposes `SortformerDiarizer`, `DiarizerManager`, and `OfflineDiarizerManager`; there is no public `LSEENDDiarizer` type in this dependency version. The spike therefore uses `SortformerDiarizer` on the shared microphone stream.
+
+> **Alignment note:** `StreamingEouAsrManager` still emits transcript strings only. The spike estimates each finalized turn's end timestamp from the shared audio timeline using the EOU debounce window, then assigns `Speaker A / Speaker B` from the dominant diarization overlap between sequential turn boundaries. This is technically workable, but it is still a heuristic layer rather than native ASR speaker labeling.
+
+> **Recommendation note (March 18, 2026):** Labeled live turns look technically viable for Sprint 2 only if they remain behind this explicit timestamp-mapping layer and keep an unlabeled fallback. The spike also reduces `StreamingEouAsrManager` EOU debounce from 1280 ms to 640 ms to shorten the long pause observed in Sprint 0. Manual locked-screen/background re-testing with ASR + diarization together is still pending.
+
+> **Verification note:** `xcodebuildmcp swift-package test --package-path /Users/mistercheese/Code/interview-partner/InterviewPartnerPackage`, `xcodebuildmcp simulator build --workspace-path /Users/mistercheese/Code/interview-partner/InterviewPartner.xcworkspace --scheme InterviewPartner --simulator-name "iPhone 17"`, and `xcodebuildmcp simulator build-and-run --workspace-path /Users/mistercheese/Code/interview-partner/InterviewPartner.xcworkspace --scheme InterviewPartner --simulator-name "iPhone 17"` all succeeded on March 18, 2026.
 
 > **Exit criterion:** Clear recommendation, backed by a working spike or explicit failure notes, for how Sprint 2 should handle live speaker labeling.
 
@@ -241,7 +249,8 @@ Sprint 0 proved the audio pipeline works. Now build the structure everything els
 - [ ] Move FluidAudio integration from Sprint 0 spike into `TranscriptionService` — this is the permanent home
 - [ ] `AVAudioEngine` + `AVAudioSession` setup (`.record`, `.allowBluetooth`)
 - [ ] `setPartialCallback` → publishes `partialText: String` to `SessionCoordinator`
-- [ ] `setEouCallback` → publishes finalized `TranscriptTurn` (speaker ID mapped to "Speaker A" / "Speaker B")
+- [ ] `setEouCallback` → publishes finalized `TranscriptTurn` text plus inferred turn timing metadata; do **not** assume native speaker IDs exist on the ASR callback
+- [ ] Run a separate diarization path alongside streaming ASR (current spike direction: `SortformerDiarizer`) and expose provisional speaker labels plus the underlying speaker timeline to `SessionCoordinator`
 - [ ] Gap detection: if gap between EOU events exceeds threshold (e.g. 10s with no audio), emit `TranscriptGap` with start/end timestamps
 - [ ] `start()` / `stop()` methods
 - [ ] Fallback: if init fails, activate `SFSpeechRecognizer` (on-device), set `diarizationAvailable = false`
@@ -250,12 +259,16 @@ Sprint 0 proved the audio pipeline works. Now build the structure everything els
 - [ ] Owns `TranscriptionService`, transcript array, gaps array, `partialTurn`, `questionStatuses`, `adHocNotes`, `elapsedSeconds`
 - [ ] **Incremental persistence:** each `TranscriptTurn`, `TranscriptGap`, `QuestionStatus` change, and `AdHocNote` written immediately via `SessionRepository` — not batched at session end
 - [ ] `Timer.publish` for elapsed time (pauses on app background)
-- [ ] `endSession()`: stops transcription, finalizes `Session` via `SessionRepository`, creates `ExportQueueEntry`, triggers immediate export attempt
+- [ ] Persist live speaker labels as **provisional** during the active session; ambiguous turns remain `Unclear` instead of forcing a confident label
+- [ ] `endSession()`: stops transcription, finalizes the full diarization timeline, runs a post-pass reconciliation over transcript turns before export/persistence becomes durable, finalizes `Session` via `SessionRepository`, creates `ExportQueueEntry`, triggers immediate export attempt
 
 **ActiveSessionView layout**
 - [ ] `SessionHeaderView`: participant label, elapsed timer, "End" button with confirmation dialog
 - [ ] `TranscriptView`: scrolling list of `TranscriptTurn`s and `TranscriptGap` markers, auto-scrolls to latest, Speaker A left-aligned / Speaker B right-aligned, color-coded, partial turn shown in-progress at bottom; gap markers rendered as `[transcription unavailable HH:MM–HH:MM]` in muted style
+- [ ] Live speaker chips/labels visually communicate that in-session attribution is provisional (for example, subdued styling, confidence hint, or explicit "live" treatment)
 - [ ] "Limited transcription mode" banner if `diarizationAvailable = false`
+
+> **Sprint 2 diarization direction:** Keep live labels because they materially improve in-session readability, but treat them as provisional. The durable session record should come from a post-session reconciliation pass over the completed diarization timeline, not from the first live overlap guess alone.
 
 **ScriptPanelView (bottom sheet)**
 - [ ] Collapsible bottom sheet with three snap states: collapsed / default / expanded
@@ -267,7 +280,7 @@ Sprint 0 proved the audio pipeline works. Now build the structure everything els
 - [ ] Ad hoc note button (`+`): one-line overlay with timestamp, saves `AdHocNote` via `SessionRepository` without navigating away
 - [ ] Panic button (`⊞`): full-screen question list with all status badges
 
-> **Exit criterion:** Start a session with a guide. Speak for 5 minutes. Manually mark 2 questions Answered, 1 Partial, 1 Skipped. Add one ad hoc note. End the session. Find it in session history. The transcript doesn't have to be perfect — diarization can be wrong. It just has to run.
+> **Exit criterion:** Start a session with a guide. Speak for 5 minutes. Manually mark 2 questions Answered, 1 Partial, 1 Skipped. Add one ad hoc note. End the session. Find it in session history. Live labels can still be wrong during capture, but the session must complete with readable provisional attribution and a post-stop reconciliation pass.
 
 ---
 
@@ -277,12 +290,15 @@ Sprint 0 proved the audio pipeline works. Now build the structure everything els
 **SessionReviewView** (driven by `@Observable ReviewCoordinator`)
 - [ ] Three-tab or segmented view: Transcript / Coverage / Export
 - [ ] Transcript tab: editable turns (tap text to edit via `ReviewCoordinator`, committed back to `SessionRepository`); tap speaker label to rename (renames all turns with that label in this session); gap markers shown read-only
+- [ ] Review UI loads reconciled speaker labels as the default/session-truth transcript; provisional live attribution is optional diagnostic metadata, not the primary editing surface
 - [ ] Coverage tab: read-only question list with final statuses, grouped by priority; ad hoc notes section below
 - [ ] Export tab: preview of `transcript.md` content, share sheet trigger
 
 **Export** (in `WorkspaceExporter`)
 - [ ] `generateTranscriptMarkdown(session:)`: header with participant label + date, turns as `[HH:MM] Speaker A: text`, gap markers as `[transcription unavailable HH:MM–HH:MM]`, ad hoc notes section, coverage summary
+- [ ] Export uses reconciled/final speaker labels rather than raw provisional live labels; ambiguous reconciliations remain visibly `Unclear`
 - [ ] `generateSessionJSON(session:)`: full session as Codable JSON with `branch: null` and `ai_scoring_prompt_override: null` stubs
+- [ ] Session JSON clearly distinguishes durable/reconciled speaker labels from any optional provisional attribution metadata if both are retained
 - [ ] Always write to `NSTemporaryDirectory()` at session end (share sheet source)
 - [ ] Write to `InterviewPartner/sessions/[YYYY-MM-DD]-[session-id]/` via security-scoped bookmark; on success delete `ExportQueueEntry`
 - [ ] On workspace failure: leave `ExportQueueEntry` in SwiftData; retry on app foreground and workspace reconnect
@@ -298,6 +314,8 @@ Sprint 0 proved the audio pipeline works. Now build the structure everything els
 - [ ] Tap → `SessionReviewView`
 
 > **Exit criterion:** End a session. Open the review. Fix one speaker label — verify all turns for that speaker update. Export to Markdown. Confirm gap markers appear correctly if transcription was interrupted. Share to Files or Notes. Kill the app before the export completes; relaunch; confirm the pending-export badge appears and the export retries successfully.
+
+> **Sprint 3 diarization direction:** Review and export should assume the post-session reconciled transcript is the source of truth. Provisional live labels are useful during capture, but they should not leak into shared artifacts unless explicitly preserved as diagnostic metadata.
 
 ---
 
