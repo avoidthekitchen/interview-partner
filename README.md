@@ -1,6 +1,6 @@
 # InterviewPartner - iOS App
 
-A modern iOS application using a **workspace + SPM package** architecture for clean separation between app shell and feature code.
+A modern iOS application using a **workspace + SPM package** architecture for clean separation between app shell and feature code. Built on top of [FluidAudio's](https://github.com/FluidInference/FluidAudio) great work! 
 
 ## AI Assistant Rules Files
 
