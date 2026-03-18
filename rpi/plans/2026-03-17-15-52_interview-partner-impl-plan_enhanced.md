@@ -182,16 +182,16 @@ This is the only sprint where you build something you'll throw away. The deliver
 - [x] Evaluate separate live diarization path with `LSEENDDiarizer` or `SortformerDiarizer`
 - [x] Determine how diarization timestamps align with `StreamingEouAsrManager` finalized transcript strings
 - [x] Prototype a temporary mapping from diarization segments to transcript turns for `Speaker A / Speaker B`
-- [ ] Re-test background performance with both ASR and diarization active
+- [x] Re-test background performance with both ASR and diarization active
 - [x] Decide whether labeled live turns are viable for Sprint 2 or should fall back to unlabeled/edited-later transcript in v1
 
 > **Sprint 0.5 note:** The current `FluidAudio` checkout exposes `SortformerDiarizer`, `DiarizerManager`, and `OfflineDiarizerManager`; there is no public `LSEENDDiarizer` type in this dependency version. The spike therefore uses `SortformerDiarizer` on the shared microphone stream.
 
 > **Alignment note:** `StreamingEouAsrManager` still emits transcript strings only. The spike estimates each finalized turn's end timestamp from the shared audio timeline using the EOU debounce window, then assigns `Speaker A / Speaker B` from the dominant diarization overlap between sequential turn boundaries. This is technically workable, but it is still a heuristic layer rather than native ASR speaker labeling.
 
-> **Recommendation note (March 18, 2026):** Labeled live turns look technically viable for Sprint 2 only if they remain behind this explicit timestamp-mapping layer and keep an unlabeled fallback. The spike also reduces `StreamingEouAsrManager` EOU debounce from 1280 ms to 640 ms to shorten the long pause observed in Sprint 0. Manual locked-screen/background re-testing with ASR + diarization together is still pending.
+> **Recommendation note (March 18, 2026):** Labeled live turns look technically viable for Sprint 2 only if they remain behind this explicit timestamp-mapping layer and keep an unlabeled fallback. The spike also reduces `StreamingEouAsrManager` EOU debounce from 1280 ms to 640 ms to shorten the long pause observed in Sprint 0. Manual locked-screen/background re-testing with ASR + diarization together is now confirmed, but EOU finalization quality and speaker attribution quality are still only prototype-grade.
 
-> **Verification note:** `xcodebuildmcp swift-package test --package-path /Users/mistercheese/Code/interview-partner/InterviewPartnerPackage`, `xcodebuildmcp simulator build --workspace-path /Users/mistercheese/Code/interview-partner/InterviewPartner.xcworkspace --scheme InterviewPartner --simulator-name "iPhone 17"`, and `xcodebuildmcp simulator build-and-run --workspace-path /Users/mistercheese/Code/interview-partner/InterviewPartner.xcworkspace --scheme InterviewPartner --simulator-name "iPhone 17"` all succeeded on March 18, 2026.
+> **Verification note:** `xcodebuildmcp swift-package test --package-path /Users/mistercheese/Code/interview-partner/InterviewPartnerPackage`, `xcodebuildmcp simulator build --workspace-path /Users/mistercheese/Code/interview-partner/InterviewPartner.xcworkspace --scheme InterviewPartner --simulator-name "iPhone 17"`, and `xcodebuildmcp simulator build-and-run --workspace-path /Users/mistercheese/Code/interview-partner/InterviewPartner.xcworkspace --scheme InterviewPartner --simulator-name "iPhone 17"` all succeeded on March 18, 2026. Manual device/simulator validation on March 18, 2026 also confirmed ASR plus diarization continue working with the screen locked/backgrounded. Turn finalization and speaker diarization detection are not great yet, but they are good enough for a prototype spike.
 
 > **Exit criterion:** Clear recommendation, backed by a working spike or explicit failure notes, for how Sprint 2 should handle live speaker labeling.
 
