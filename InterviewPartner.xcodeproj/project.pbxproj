@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		8B41F6832DEDD23B001A66F9 /* InterviewPartnerFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 8B41F6822DEDD23B001A66F9 /* InterviewPartnerFeature */; };
-		8B41F6852DEDD25C001A66F9 /* InterviewPartnerFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 8B41F6842DEDD25C001A66F9 /* InterviewPartnerFeature */; };
+		8B41F6832DEDD23B001A66F9 /* InterviewPartnerServices in Frameworks */ = {isa = PBXBuildFile; productRef = 8B41F6822DEDD23B001A66F9 /* InterviewPartnerServices */; };
+		8B41F6852DEDD25C001A66F9 /* InterviewPartnerFeatures in Frameworks */ = {isa = PBXBuildFile; productRef = 8B41F6842DEDD25C001A66F9 /* InterviewPartnerFeatures */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,7 +66,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8B41F6852DEDD25C001A66F9 /* InterviewPartnerFeature in Frameworks */,
+				8B41F6852DEDD25C001A66F9 /* InterviewPartnerFeatures in Frameworks */,
+				8B41F6832DEDD23B001A66F9 /* InterviewPartnerServices in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -74,7 +75,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8B41F6832DEDD23B001A66F9 /* InterviewPartnerFeature in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -129,7 +129,8 @@
 			);
 			name = InterviewPartner;
 			packageProductDependencies = (
-				8B41F6842DEDD25C001A66F9 /* InterviewPartnerFeature */,
+				8B41F6822DEDD23B001A66F9 /* InterviewPartnerServices */,
+				8B41F6842DEDD25C001A66F9 /* InterviewPartnerFeatures */,
 			);
 			productName = InterviewPartner;
 			productReference = 8B41F6452DEDD0D5001A66F9 /* InterviewPartner.app */;
@@ -153,7 +154,6 @@
 			);
 			name = InterviewPartnerUITests;
 			packageProductDependencies = (
-				8B41F6822DEDD23B001A66F9 /* InterviewPartnerFeature */,
 			);
 			productName = InterviewPartnerUITests;
 			productReference = 8B41F65C2DEDD0D6001A66F9 /* InterviewPartner.xctest */;
@@ -463,13 +463,13 @@
 /* End XCConfigurationList section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		8B41F6822DEDD23B001A66F9 /* InterviewPartnerFeature */ = {
+		8B41F6822DEDD23B001A66F9 /* InterviewPartnerServices */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = InterviewPartnerFeature;
+			productName = InterviewPartnerServices;
 		};
-		8B41F6842DEDD25C001A66F9 /* InterviewPartnerFeature */ = {
+		8B41F6842DEDD25C001A66F9 /* InterviewPartnerFeatures */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = InterviewPartnerFeature;
+			productName = InterviewPartnerFeatures;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

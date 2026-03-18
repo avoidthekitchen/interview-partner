@@ -2,7 +2,16 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "group:InterviewPartnerPackage">
+      location = "group:Packages/InterviewPartnerDomain">
+   </FileRef>
+   <FileRef
+      location = "group:Packages/InterviewPartnerData">
+   </FileRef>
+   <FileRef
+      location = "group:Packages/InterviewPartnerServices">
+   </FileRef>
+   <FileRef
+      location = "group:Packages/InterviewPartnerFeatures">
    </FileRef>
    <FileRef
       location = "container:InterviewPartner.xcodeproj">
