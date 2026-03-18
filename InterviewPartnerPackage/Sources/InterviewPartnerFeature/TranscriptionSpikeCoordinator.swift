@@ -8,6 +8,10 @@ import OSLog
 @Observable
 public final class TranscriptionSpikeCoordinator {
     private static let eouDebounceMs = 640
+    private static let logger = Logger(
+        subsystem: "com.mistercheese.InterviewPartner",
+        category: "TranscriptionSpikeCoordinator"
+    )
 
     public private(set) var partialText = ""
     public private(set) var turns: [TranscriptTurn] = []
@@ -71,11 +75,16 @@ public final class TranscriptionSpikeCoordinator {
 
             do {
                 diarizationStatusMessage = "Loading Sortformer diarization model..."
+                Self.logger.info("Preparing Sortformer diarization model for live speaker mapping")
                 try await diarizationEngine.prepareIfNeeded()
                 diarizationStatusMessage = "Sortformer diarization active on the shared microphone stream."
+                Self.logger.info("Sortformer diarization model ready; live speaker mapping is active")
             } catch {
                 diarizationStatusMessage =
                     "Sortformer diarization failed to load. Sprint 2 should fall back to unlabeled live turns unless this improves."
+                Self.logger.error(
+                    "Sortformer diarization model failed to load; continuing without live labels: \(error.localizedDescription, privacy: .public)"
+                )
             }
 
             try configureAudioSession()
@@ -214,6 +223,9 @@ public final class TranscriptionSpikeCoordinator {
         diarizationStatusMessage = attribution.note
         refreshSprintRecommendation(from: diarizationSnapshot)
         statusMessage = "Finalized turn mapped onto diarization timeline"
+        Self.logger.info(
+            "Finalized turn \(turn.id.uuidString, privacy: .public) label=\(turn.speakerLabel, privacy: .public) confidence=\(attribution.confidence, format: .fixed(precision: 2)) window=\(Self.windowSummary(start: attribution.estimatedStartTimeSeconds, end: attribution.estimatedEndTimeSeconds), privacy: .public) textLength=\(turn.text.count) diarizationSegments=\(diarizationSnapshot.segments.count) note=\(attribution.note, privacy: .public)"
+        )
     }
 
     private func deltaText(fromCumulativeTranscript transcript: String) -> String {
@@ -276,6 +288,10 @@ public final class TranscriptionSpikeCoordinator {
         sprintRecommendation =
             "Recommendation: keep the mapping spike as evidence, but plan for a fallback to unlabeled live turns in v1 if real-device validation is noisy. Current run mapped \(mappedTurns)/\(turns.count) turns across \(snapshot.segments.count) diarization segments."
     }
+
+    private static func windowSummary(start: TimeInterval, end: TimeInterval) -> String {
+        String(format: "%.2fs-%.2fs", start, end)
+    }
 }
 
 private extension AVAudioPCMBuffer {
@@ -326,8 +342,8 @@ private enum AudioTapBridge {
 
             Task {
                 do {
-                    _ = try await asrManager.process(audioBuffer: bufferBox.buffer)
                     try await diarizationEngine.ingest(bufferBox.buffer)
+                    _ = try await asrManager.process(audioBuffer: bufferBox.buffer)
                 } catch {
                     logger.error("Audio processing failed: \(error.localizedDescription, privacy: .public)")
                 }
