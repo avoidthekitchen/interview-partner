@@ -11,6 +11,7 @@ There are a thousand user interview apps, but this one is mine. This app is inte
 - iOS and macOS first
 
 <img width="295" height="639" alt="image" src="https://github.com/user-attachments/assets/88840b2a-c84d-4c31-9ad4-dbac8164db3b" />
+<img width="295" height="639" alt="image" src="https://github.com/user-attachments/assets/f8ffbc06-f972-4628-8fb1-6d66721821b7" />
 <img width="295" height="639" alt="image" src="https://github.com/user-attachments/assets/ed667f04-7d6f-42fe-a67e-9ac3ec2f4aed" />
 
 
