@@ -7,15 +7,28 @@ import OSLog
 @MainActor
 @Observable
 public final class TranscriptionSpikeCoordinator {
+    private static let eouDebounceMs = 640
+    private static let logger = Logger(
+        subsystem: "com.mistercheese.InterviewPartner",
+        category: "TranscriptionSpikeCoordinator"
+    )
+
     public private(set) var partialText = ""
     public private(set) var turns: [TranscriptTurn] = []
+    public private(set) var diarizedSegments: [DiarizedSegment] = []
     public private(set) var isRecording = false
     public private(set) var statusMessage = "Ready to start"
+    public private(set) var diarizationStatusMessage = "Sortformer diarization not started"
+    public private(set) var sprintRecommendation = "Pending: start the spike to evaluate whether live speaker labels are viable."
     public private(set) var errorMessage: String?
 
     private let chunkSize: StreamingChunkSize = .ms160
     private let audioEngine = AVAudioEngine()
-    private let asrManager = StreamingEouAsrManager(chunkSize: .ms160)
+    private let asrManager = StreamingEouAsrManager(
+        chunkSize: .ms160,
+        eouDebounceMs: TranscriptionSpikeCoordinator.eouDebounceMs
+    )
+    private let diarizationEngine = LiveDiarizationSpikeEngine()
     private var hasLoadedModels = false
     private var callbacksConfigured = false
     private var persistenceSink: ((TranscriptTurnRecord) -> Void)?
@@ -49,17 +62,35 @@ public final class TranscriptionSpikeCoordinator {
         errorMessage = nil
         partialText = ""
         turns.removeAll()
+        diarizedSegments.removeAll()
         lastCommittedTranscript = ""
         statusMessage = "Preparing microphone and models..."
+        sprintRecommendation = "Running live ASR + Sortformer diarization spike."
 
         do {
             try await configureCallbacksIfNeeded()
             try await loadModelsIfNeeded()
             await asrManager.reset()
+            await diarizationEngine.reset()
+
+            do {
+                diarizationStatusMessage = "Loading Sortformer diarization model..."
+                Self.logger.info("Preparing Sortformer diarization model for live speaker mapping")
+                try await diarizationEngine.prepareIfNeeded()
+                diarizationStatusMessage = "Sortformer diarization active on the shared microphone stream."
+                Self.logger.info("Sortformer diarization model ready; live speaker mapping is active")
+            } catch {
+                diarizationStatusMessage =
+                    "Sortformer diarization failed to load. Sprint 2 should fall back to unlabeled live turns unless this improves."
+                Self.logger.error(
+                    "Sortformer diarization model failed to load; continuing without live labels: \(error.localizedDescription, privacy: .public)"
+                )
+            }
+
             try configureAudioSession()
             try startAudioEngine()
             isRecording = true
-            statusMessage = "Listening for speech..."
+            statusMessage = "Listening for speech with shorter EOU debounce..."
         } catch {
             errorMessage = error.localizedDescription
             statusMessage = "Unable to start transcription"
@@ -72,7 +103,7 @@ public final class TranscriptionSpikeCoordinator {
 
         do {
             let transcript = try await asrManager.finish()
-            appendIfNeeded(fromCumulativeTranscript: transcript)
+            await appendIfNeeded(fromCumulativeTranscript: transcript)
             await asrManager.reset()
             statusMessage = "Stopped"
         } catch {
@@ -80,6 +111,9 @@ public final class TranscriptionSpikeCoordinator {
             statusMessage = "Stopped with an error"
         }
 
+        let diarizationSnapshot = await diarizationEngine.finalizeAndSnapshot()
+        diarizedSegments = diarizationSnapshot.segments
+        refreshSprintRecommendation(from: diarizationSnapshot)
         partialText = ""
         isRecording = false
     }
@@ -95,7 +129,7 @@ public final class TranscriptionSpikeCoordinator {
 
         await asrManager.setEouCallback { [weak self] transcript in
             Task { @MainActor [weak self] in
-                self?.appendIfNeeded(fromCumulativeTranscript: transcript)
+                await self?.appendIfNeeded(fromCumulativeTranscript: transcript)
             }
         }
 
@@ -123,13 +157,14 @@ public final class TranscriptionSpikeCoordinator {
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
         let asrManager = self.asrManager
+        let diarizationEngine = self.diarizationEngine
 
         inputNode.removeTap(onBus: 0)
         inputNode.installTap(
             onBus: 0,
             bufferSize: 2048,
             format: format,
-            block: AudioTapBridge.makeBlock(asrManager: asrManager)
+            block: AudioTapBridge.makeBlock(asrManager: asrManager, diarizationEngine: diarizationEngine)
         )
 
         audioEngine.prepare()
@@ -151,7 +186,7 @@ public final class TranscriptionSpikeCoordinator {
         }
     }
 
-    private func appendIfNeeded(fromCumulativeTranscript transcript: String) {
+    private func appendIfNeeded(fromCumulativeTranscript transcript: String) async {
         let newText = deltaText(fromCumulativeTranscript: transcript)
         let trimmedText = newText.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -160,10 +195,37 @@ public final class TranscriptionSpikeCoordinator {
 
         guard !trimmedText.isEmpty else { return }
 
-        let turn = TranscriptTurn(text: trimmedText)
+        let attribution = await diarizationEngine.attributeNextTurn(
+            eouDebounceMs: Self.eouDebounceMs
+        )
+        let turn = TranscriptTurn(
+            speakerLabel: attribution.speakerLabel,
+            text: trimmedText,
+            startTimeSeconds: attribution.estimatedStartTimeSeconds,
+            endTimeSeconds: attribution.estimatedEndTimeSeconds,
+            speakerMatchConfidence: attribution.confidence
+        )
         turns.append(turn)
-        persistenceSink?(TranscriptTurnRecord(id: turn.id, text: turn.text, createdAt: turn.createdAt))
-        statusMessage = "Finalized turn received"
+        persistenceSink?(
+            TranscriptTurnRecord(
+                id: turn.id,
+                speakerLabel: turn.speakerLabel,
+                text: turn.text,
+                createdAt: turn.createdAt,
+                startTimeSeconds: turn.startTimeSeconds,
+                endTimeSeconds: turn.endTimeSeconds,
+                speakerMatchConfidence: turn.speakerMatchConfidence
+            )
+        )
+
+        let diarizationSnapshot = await diarizationEngine.currentSnapshot()
+        diarizedSegments = diarizationSnapshot.segments
+        diarizationStatusMessage = attribution.note
+        refreshSprintRecommendation(from: diarizationSnapshot)
+        statusMessage = "Finalized turn mapped onto diarization timeline"
+        Self.logger.info(
+            "Finalized turn \(turn.id.uuidString, privacy: .public) label=\(turn.speakerLabel, privacy: .public) confidence=\(attribution.confidence, format: .fixed(precision: 2)) window=\(Self.windowSummary(start: attribution.estimatedStartTimeSeconds, end: attribution.estimatedEndTimeSeconds), privacy: .public) textLength=\(turn.text.count) diarizationSegments=\(diarizationSnapshot.segments.count) note=\(attribution.note, privacy: .public)"
+        )
     }
 
     private func deltaText(fromCumulativeTranscript transcript: String) -> String {
@@ -206,6 +268,30 @@ public final class TranscriptionSpikeCoordinator {
 
         try await DownloadUtils.downloadRepo(repo, to: modelsRoot)
     }
+
+    private func refreshSprintRecommendation(from snapshot: DiarizationSnapshot) {
+        let mappedTurns = turns.filter { $0.speakerLabel != "Unclear" }.count
+        let lowConfidenceTurns = turns.filter { ($0.speakerMatchConfidence ?? 0) < 0.55 }.count
+
+        if mappedTurns == 0 {
+            sprintRecommendation =
+                "Recommendation: live speaker labels are not yet viable. The spike is capturing audio and diarization segments, but finalized turns are still effectively unlabeled."
+            return
+        }
+
+        if mappedTurns == turns.count && lowConfidenceTurns <= max(1, turns.count / 4) {
+            sprintRecommendation =
+                "Recommendation: live speaker labels look technically viable for Sprint 2, but only through a shared-audio timestamp mapping layer. The ASR API still does not provide speaker IDs or turn timestamps directly."
+            return
+        }
+
+        sprintRecommendation =
+            "Recommendation: keep the mapping spike as evidence, but plan for a fallback to unlabeled live turns in v1 if real-device validation is noisy. Current run mapped \(mappedTurns)/\(turns.count) turns across \(snapshot.segments.count) diarization segments."
+    }
+
+    private static func windowSummary(start: TimeInterval, end: TimeInterval) -> String {
+        String(format: "%.2fs-%.2fs", start, end)
+    }
 }
 
 private extension AVAudioPCMBuffer {
@@ -247,12 +333,16 @@ private extension AVAudioPCMBuffer {
 private enum AudioTapBridge {
     private static let logger = Logger(subsystem: "com.mistercheese.InterviewPartner", category: "AudioTap")
 
-    nonisolated static func makeBlock(asrManager: StreamingEouAsrManager) -> AVAudioNodeTapBlock {
+    nonisolated static func makeBlock(
+        asrManager: StreamingEouAsrManager,
+        diarizationEngine: LiveDiarizationSpikeEngine
+    ) -> AVAudioNodeTapBlock {
         { buffer, _ in
             guard let bufferBox = buffer.deepCopy().map(SendablePCMBufferBox.init) else { return }
 
             Task {
                 do {
+                    try await diarizationEngine.ingest(bufferBox.buffer)
                     _ = try await asrManager.process(audioBuffer: bufferBox.buffer)
                 } catch {
                     logger.error("Audio processing failed: \(error.localizedDescription, privacy: .public)")
