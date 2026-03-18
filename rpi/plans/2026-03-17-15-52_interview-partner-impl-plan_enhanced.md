@@ -202,35 +202,37 @@ This is the only sprint where you build something you'll throw away. The deliver
 
 Sprint 0 proved the audio pipeline works. Now build the structure everything else will live in. Define the full data model — all eight entities — before building any views.
 
+> **Implementation note (March 18, 2026):** Per user direction, Sprint 1 keeps the app baseline at iOS 18.4 instead of lowering the project to the plan's original iOS 17 minimum.
+
 **Package scaffolding**
-- [ ] Convert Sprint 0 project to workspace; add four local packages: `InterviewPartnerDomain`, `InterviewPartnerData`, `InterviewPartnerServices`, `InterviewPartnerFeatures`
-- [ ] Wire package dependencies: `App → Features → Services → Data → Domain`; verify build succeeds with empty packages before writing source
-- [ ] Move `TranscriptTurn` stub type from Sprint 0 spike into `InterviewPartnerDomain` as the canonical domain model
-- [ ] Define all service protocols in `InterviewPartnerDomain`: `GuideRepository`, `SessionRepository`, `WorkspaceExporter`, `WorkspaceGuideImporter`, `PermissionManager`, `KeychainStore` (stub)
+- [x] Convert Sprint 0 project to workspace; add four local packages: `InterviewPartnerDomain`, `InterviewPartnerData`, `InterviewPartnerServices`, `InterviewPartnerFeatures`
+- [x] Wire package dependencies: `App → Features → Services → Data → Domain`; verify build succeeds with empty packages before writing source
+- [x] Move `TranscriptTurn` stub type from Sprint 0 spike into `InterviewPartnerDomain` as the canonical domain model
+- [x] Define all service protocols in `InterviewPartnerDomain`: `GuideRepository`, `SessionRepository`, `WorkspaceExporter`, `WorkspaceGuideImporter`, `PermissionManager`, `KeychainStore` (stub)
 
 **Data model** (in `InterviewPartnerData`)
-- [ ] Define all SwiftData `@Model` classes: `Guide`, `Question`, `Session`, `TranscriptTurn`, `TranscriptGap`, `QuestionStatus`, `AdHocNote`, `ExportQueueEntry`
-- [ ] Define `priority` enum (`mustCover / shouldCover / niceTo Have`) and `status` enum (`notStarted / partial / answered / skipped`)
-- [ ] Verify relationships: `Guide` ↔ `Question` (ordered array), `Session` ↔ `QuestionStatus`, `Session` ↔ `TranscriptTurn`, `Session` ↔ `TranscriptGap`, `Session` ↔ `AdHocNote`
-- [ ] `guideSnapshot` on `Session`: stored as a Codable struct copy, not a `Guide` reference
-- [ ] Implement `GuideRepository` and `SessionRepository` concrete types backed by SwiftData
+- [x] Define all SwiftData `@Model` classes: `Guide`, `Question`, `Session`, `TranscriptTurn`, `TranscriptGap`, `QuestionStatus`, `AdHocNote`, `ExportQueueEntry`
+- [x] Define `priority` enum (`mustCover / shouldCover / niceTo Have`) and `status` enum (`notStarted / partial / answered / skipped`)
+- [x] Verify relationships: `Guide` ↔ `Question` (ordered array), `Session` ↔ `QuestionStatus`, `Session` ↔ `TranscriptTurn`, `Session` ↔ `TranscriptGap`, `Session` ↔ `AdHocNote`
+- [x] `guideSnapshot` on `Session`: stored as a Codable struct copy, not a `Guide` reference
+- [x] Implement `GuideRepository` and `SessionRepository` concrete types backed by SwiftData
 
 **Navigation shell** (in app target)
-- [ ] Tab bar: Sessions / Guides / Settings
-- [ ] `SessionListView`: empty state, list of past sessions (stubbed), "New Session" button (sheet — wired in Sprint 2)
+- [x] Tab bar: Sessions / Guides / Settings
+- [x] `SessionListView`: empty state, list of past sessions (stubbed), "New Session" button (sheet — wired in Sprint 2)
 
 **Workspace setup**
-- [ ] Settings tab: iCloud folder picker (`UIDocumentPickerViewController`); persist selection as security-scoped bookmark in `UserDefaults`
-- [ ] Onboarding gate: if no bookmark on first "New Session" tap and iCloud Drive available, show setup sheet; if iCloud Drive unavailable, proceed with app documents directory and show warning banner
-- [ ] `WorkspaceExporter` stub: resolves bookmark, calls `startAccessingSecurityScopedResource()`, writes files, calls `stopAccessingSecurityScopedResource()`; on bookmark failure, writes to app documents directory
+- [x] Settings tab: iCloud folder picker (`UIDocumentPickerViewController`); persist selection as security-scoped bookmark in `UserDefaults`
+- [x] Onboarding gate: if no bookmark on first "New Session" tap and iCloud Drive available, show setup sheet; if iCloud Drive unavailable, proceed with app documents directory and show warning banner
+- [x] `WorkspaceExporter` stub: resolves bookmark, calls `startAccessingSecurityScopedResource()`, writes files, calls `stopAccessingSecurityScopedResource()`; on bookmark failure, writes to app documents directory
 
 **Guide CRUD**
-- [ ] `GuideListView`: list of guides from `GuideRepository`, swipe-to-delete, "New Guide" button
-- [ ] `GuideEditorView`: name field, goal/context text area, question list; driven by `@Observable GuideEditorCoordinator` in `InterviewPartnerFeatures`
-- [ ] Question row: text field, priority picker (Must Cover / Should Cover / Nice to Have), reorder handle
-- [ ] Sub-prompts per question: expandable list, collapsed by default
-- [ ] Duplicate guide action (long-press or context menu)
-- [ ] On save: write guide JSON to `InterviewPartner/guides/[guide-slug].json` via `WorkspaceExporter`; JSON includes `branch: null` and `ai_scoring_prompt_override: null` stubs
+- [x] `GuideListView`: list of guides from `GuideRepository`, swipe-to-delete, "New Guide" button
+- [x] `GuideEditorView`: name field, goal/context text area, question list; driven by `@Observable GuideEditorCoordinator` in `InterviewPartnerFeatures`
+- [x] Question row: text field, priority picker (Must Cover / Should Cover / Nice to Have), reorder handle
+- [x] Sub-prompts per question: expandable list, collapsed by default
+- [x] Duplicate guide action (long-press or context menu)
+- [x] On save: write guide JSON to `InterviewPartner/guides/[guide-slug].json` via `WorkspaceExporter`; JSON includes `branch: null` and `ai_scoring_prompt_override: null` stubs
 
 > **Exit criterion:** Create a guide with 5 questions at mixed priorities. Reopen it. Edit a question text. Change a priority. Add a sub-prompt. Delete a question. Duplicate the guide. All changes persist across app restart. Guide JSON appears in the workspace folder with `branch: null` present in the file.
 

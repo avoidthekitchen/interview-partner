@@ -1,13 +1,24 @@
 import SwiftUI
 import SwiftData
-import InterviewPartnerFeature
+import InterviewPartnerFeatures
+import InterviewPartnerServices
 
 @main
 struct InterviewPartnerApp: App {
+    private let appEnvironment: Sprint1AppEnvironment
+
+    init() {
+        do {
+            appEnvironment = try Sprint1AppEnvironment()
+        } catch {
+            fatalError("Failed to bootstrap Sprint 1 environment: \(error)")
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            InterviewPartnerRootView(appEnvironment: appEnvironment)
         }
-        .modelContainer(for: [TranscriptTurnRecord.self])
+        .modelContainer(appEnvironment.modelContainer)
     }
 }

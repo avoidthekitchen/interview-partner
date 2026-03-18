@@ -10,6 +10,15 @@ There are a thousand user interview apps, but this one is mine. This app is inte
 - Optional LLM integration (OpenAI, Anthropic, etc.) to passively monitor the transcript, score question coverage in real time (1–10), and generate a findings summary after the interview wraps
 - iOS and macOS first
 
+## Current Status
+
+The repository currently ships a **Sprint 0.5 diarization spike** rather than the full product surface described above.
+
+- Live partial transcription is powered by FluidAudio's `StreamingEouAsrManager`
+- Finalized turns are aligned onto a parallel Sortformer diarization timeline to assign **provisional** speaker labels such as Speaker A / Speaker B
+- Finalized transcript turns are persisted through SwiftData so each run can be inspected after capture
+- The diarization mapping is still experimental because the EOU callback returns transcript strings, not speaker IDs or turn timestamps directly
+
 ## AI Assistant Rules Files
 
 This template includes **opinionated rules files** for popular AI coding assistants. These files establish coding standards, architectural patterns, and best practices for modern iOS development using the latest APIs and Swift features.
@@ -39,17 +48,19 @@ These rules files are **starting points** - feel free to:
 
 ```
 InterviewPartner/
+├── Config/                                  # XCConfig, Info.plist, entitlements
 ├── InterviewPartner.xcworkspace/              # Open this file in Xcode
 ├── InterviewPartner.xcodeproj/                # App shell project
-├── InterviewPartner/                          # App target (minimal)
-│   ├── Assets.xcassets/                # App-level assets (icons, colors)
+├── InterviewPartner/                          # App target + SwiftData container wiring
+│   ├── Assets.xcassets/                       # App-level assets (icons, colors)
 │   ├── InterviewPartnerApp.swift              # App entry point
 │   └── InterviewPartner.xctestplan            # Test configuration
 ├── InterviewPartnerPackage/                   # 🚀 Primary development area
-│   ├── Package.swift                   # Package configuration
+│   ├── Package.swift                          # Package configuration
 │   ├── Sources/InterviewPartnerFeature/       # Your feature code
 │   └── Tests/InterviewPartnerFeatureTests/    # Unit tests
-└── InterviewPartnerUITests/                   # UI automation tests
+├── InterviewPartnerUITests/                   # UI automation tests
+└── docs/                                      # PRD and supporting docs
 ```
 
 ## Key Architecture Points
@@ -57,9 +68,10 @@ InterviewPartner/
 This is a modern iOS application using a **workspace + SPM package** architecture for clean separation between app shell and feature code. Built on top of [FluidAudio's](https://github.com/FluidInference/FluidAudio) great work! 
 
 ### Workspace + SPM Structure
-- **App Shell**: `InterviewPartner/` contains minimal app lifecycle code
+- **App Shell**: `InterviewPartner/` contains minimal app lifecycle code plus the SwiftData model container
 - **Feature Code**: `InterviewPartnerPackage/Sources/InterviewPartnerFeature/` is where most development happens
-- **Separation**: Business logic lives in the SPM package, app target just imports and displays it
+- **Current Spike Entry Points**: `ContentView`, `TranscriptionSpikeCoordinator`, `TranscriptTurn`, and `DiarizationSpikeSupport`
+- **Separation**: Business logic lives in the SPM package while the app target imports the package and wires persistence
 
 ### Buildable Folders (Xcode 16)
 - Files added to the filesystem automatically appear in Xcode
@@ -70,6 +82,21 @@ This is a modern iOS application using a **workspace + SPM package** architectur
 
 ### Code Organization
 Most development happens in `InterviewPartnerPackage/Sources/InterviewPartnerFeature/` - organize your code as you prefer.
+
+### Running the Current Spike
+- Open `InterviewPartner.xcworkspace` in Xcode
+- Run the app and tap **Start Transcription** on the Sprint 0.5 diarization screen
+- The first run will request microphone access
+- The first transcription start may also download/load FluidAudio models into Application Support, so expect a longer startup
+- Sortformer diarization is loaded separately; if it fails, the spike can still capture transcript turns but speaker labels may remain unclear
+- Pause briefly between sentences so the EOU callback can finalize a turn
+
+### What the Spike Proves Today
+- Live partial transcript updates
+- Finalized utterance turns from the EOU callback
+- Heuristic speaker attribution by aligning finalized turns to a separate diarization timeline
+- Persistence of transcript turns with speaker label, timestamps, and attribution confidence
+- A concrete starting point for Sprint 2, but not production-grade speaker labeling yet
 
 ### Public API Requirements
 Types exposed to the app target need `public` access:
