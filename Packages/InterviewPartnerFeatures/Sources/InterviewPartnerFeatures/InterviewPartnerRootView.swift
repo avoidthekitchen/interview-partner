@@ -2,10 +2,10 @@ import SwiftUI
 import InterviewPartnerServices
 
 public struct InterviewPartnerRootView: View {
-    private let appEnvironment: Sprint1AppEnvironment
+    private let appEnvironment: AppEnvironment
     @State private var workspaceRefreshToken = UUID()
 
-    public init(appEnvironment: Sprint1AppEnvironment) {
+    public init(appEnvironment: AppEnvironment) {
         self.appEnvironment = appEnvironment
     }
 
@@ -13,8 +13,11 @@ public struct InterviewPartnerRootView: View {
         TabView {
             NavigationStack {
                 SessionListView(
+                    guideRepository: appEnvironment.guideRepository,
                     sessionRepository: appEnvironment.sessionRepository,
                     workspaceExporter: appEnvironment.workspaceExporter,
+                    permissionManager: appEnvironment.permissionManager,
+                    makeTranscriptionService: appEnvironment.makeTranscriptionService,
                     workspaceRefreshToken: workspaceRefreshToken
                 )
             }

@@ -1,3 +1,4 @@
+import AVFAudio
 import InterviewPartnerDomain
 
 @MainActor
@@ -10,11 +11,37 @@ public final class DefaultWorkspaceGuideImporter: WorkspaceGuideImporter {
 }
 
 @MainActor
-public final class StubPermissionManager: PermissionManager {
+public final class SystemPermissionManager: PermissionManager {
     public init() {}
 
     public func microphonePermissionState() -> MicrophonePermissionState {
-        .notDetermined
+        #if os(iOS)
+        switch AVAudioApplication.shared.recordPermission {
+        case .granted:
+            return .granted
+        case .denied:
+            return .denied
+        case .undetermined:
+            return .notDetermined
+        @unknown default:
+            return .notDetermined
+        }
+        #else
+        return .granted
+        #endif
+    }
+
+    public func requestMicrophonePermission() async -> MicrophonePermissionState {
+        #if os(iOS)
+        let granted = await withCheckedContinuation { continuation in
+            AVAudioApplication.requestRecordPermission { allowed in
+                continuation.resume(returning: allowed)
+            }
+        }
+        return granted ? .granted : .denied
+        #else
+        return .granted
+        #endif
     }
 }
 

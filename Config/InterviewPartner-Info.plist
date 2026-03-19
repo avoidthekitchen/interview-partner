@@ -24,6 +24,8 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Interview Partner needs microphone access to transcribe live interviews on device.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Interview Partner uses speech recognition as a local fallback if the primary on-device transcription engine is unavailable.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

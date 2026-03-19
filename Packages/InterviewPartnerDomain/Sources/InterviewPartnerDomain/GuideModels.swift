@@ -269,6 +269,27 @@ public struct GuideExportDocument: Codable, Hashable, Sendable, Identifiable {
         case branch
         case aiScoringPromptOverride = "ai_scoring_prompt_override"
     }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(goal, forKey: .goal)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(questions, forKey: .questions)
+
+        if let branch {
+            try container.encode(branch, forKey: .branch)
+        } else {
+            try container.encodeNil(forKey: .branch)
+        }
+
+        if let aiScoringPromptOverride {
+            try container.encode(aiScoringPromptOverride, forKey: .aiScoringPromptOverride)
+        } else {
+            try container.encodeNil(forKey: .aiScoringPromptOverride)
+        }
+    }
 }
 
 public struct WorkspaceStatus: Equatable, Sendable {
