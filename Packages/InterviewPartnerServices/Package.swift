@@ -13,6 +13,10 @@ let package = Package(
             name: "InterviewPartnerServices",
             targets: ["InterviewPartnerServices"]
         ),
+        .executable(
+            name: "InterviewPartnerTranscriptionEvalCLI",
+            targets: ["InterviewPartnerTranscriptionEvalCLI"]
+        ),
     ],
     dependencies: [
         .package(path: "../InterviewPartnerDomain"),
@@ -27,6 +31,15 @@ let package = Package(
                 "InterviewPartnerData",
                 .product(name: "FluidAudio", package: "FluidAudio"),
             ]
+        ),
+        .executableTarget(
+            name: "InterviewPartnerTranscriptionEvalCLI",
+            dependencies: ["InterviewPartnerServices"]
+        ),
+        .testTarget(
+            name: "InterviewPartnerServicesTests",
+            dependencies: ["InterviewPartnerServices"],
+            resources: [.process("Resources")]
         ),
     ]
 )

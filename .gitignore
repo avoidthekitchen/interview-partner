@@ -60,3 +60,7 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# Local transcription benchmark inputs/outputs
+rpi/evals/mobile_transcription/local_fixtures/
+rpi/evals/mobile_transcription/local_reports/

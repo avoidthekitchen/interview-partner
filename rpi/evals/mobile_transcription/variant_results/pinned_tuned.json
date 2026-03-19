@@ -1,0 +1,136 @@
+{
+  "fixture_set" : "baseline",
+  "fixtures" : [
+    {
+      "description" : "Short acknowledgement should finalize as its own turn instead of inheriting the prior debounce window.",
+      "fixture_id" : "baseline_short_ack",
+      "metrics" : {
+        "actual_final_speaker_count" : 2,
+        "actual_final_turn_count" : 2,
+        "actual_live_speaker_count" : 1,
+        "actual_live_turn_count" : 2,
+        "actual_turn_precision" : 1,
+        "expected_speaker_count" : 2,
+        "expected_turn_count" : 2,
+        "expected_turn_recall" : 1,
+        "extra_actual_turn_count" : 0,
+        "final_speaker_accuracy" : 1,
+        "final_speaker_count_error" : 0,
+        "final_speaker_coverage_recall" : 1,
+        "late_finalization_p95_ms" : 770,
+        "live_speaker_accuracy" : 0.5,
+        "live_speaker_count_error" : 1,
+        "live_speaker_coverage_recall" : 0.5,
+        "missing_expected_turn_count" : 0,
+        "missing_speech_end_count" : 0,
+        "offline_runtime_rtf" : 0.14193548387096774,
+        "session_coverage_ratio" : 1,
+        "split_merge_error_count" : 0,
+        "turn_boundary_mae_ms" : 0,
+        "unclear_rate" : 0
+      },
+      "notes" : [
+        "Live speaker label mismatch detected.",
+        "Live speaker cardinality mismatch detected."
+      ]
+    },
+    {
+      "description" : "Overlapping handoff should prefer tighter VAD windows and offline final labels over a broad debounce estimate.",
+      "fixture_id" : "overlap_repair",
+      "metrics" : {
+        "actual_final_speaker_count" : 2,
+        "actual_final_turn_count" : 2,
+        "actual_live_speaker_count" : 2,
+        "actual_live_turn_count" : 2,
+        "actual_turn_precision" : 1,
+        "expected_speaker_count" : 2,
+        "expected_turn_count" : 2,
+        "expected_turn_recall" : 1,
+        "extra_actual_turn_count" : 0,
+        "final_speaker_accuracy" : 1,
+        "final_speaker_count_error" : 0,
+        "final_speaker_coverage_recall" : 1,
+        "late_finalization_p95_ms" : 600.0000000000001,
+        "live_speaker_accuracy" : 1,
+        "live_speaker_count_error" : 0,
+        "live_speaker_coverage_recall" : 1,
+        "missing_expected_turn_count" : 0,
+        "missing_speech_end_count" : 0,
+        "offline_runtime_rtf" : 0.19374999999999998,
+        "session_coverage_ratio" : 1,
+        "split_merge_error_count" : 0,
+        "turn_boundary_mae_ms" : 0,
+        "unclear_rate" : 0
+      },
+      "notes" : [
+
+      ]
+    },
+    {
+      "description" : "Revised earlier tokens and a long intra-speaker pause should not duplicate the entire transcript or blur the second turn window.",
+      "fixture_id" : "revision_long_pause",
+      "metrics" : {
+        "actual_final_speaker_count" : 1,
+        "actual_final_turn_count" : 2,
+        "actual_live_speaker_count" : 1,
+        "actual_live_turn_count" : 2,
+        "actual_turn_precision" : 1,
+        "expected_speaker_count" : 1,
+        "expected_turn_count" : 2,
+        "expected_turn_recall" : 1,
+        "extra_actual_turn_count" : 0,
+        "final_speaker_accuracy" : 1,
+        "final_speaker_count_error" : 0,
+        "final_speaker_coverage_recall" : 1,
+        "late_finalization_p95_ms" : 799.9999999999998,
+        "live_speaker_accuracy" : 1,
+        "live_speaker_count_error" : 0,
+        "live_speaker_coverage_recall" : 1,
+        "missing_expected_turn_count" : 0,
+        "missing_speech_end_count" : 0,
+        "offline_runtime_rtf" : 0.09310344827586207,
+        "session_coverage_ratio" : 1,
+        "split_merge_error_count" : 0,
+        "turn_boundary_mae_ms" : 0,
+        "unclear_rate" : 0
+      },
+      "notes" : [
+
+      ]
+    },
+    {
+      "description" : "A longer three-speaker roundtable should preserve turn recall, full-session coverage, and speaker cardinality instead of collapsing into just a few early turns.",
+      "fixture_id" : "three_speaker_roundtable_long",
+      "metrics" : {
+        "actual_final_speaker_count" : 3,
+        "actual_final_turn_count" : 10,
+        "actual_live_speaker_count" : 3,
+        "actual_live_turn_count" : 10,
+        "actual_turn_precision" : 1,
+        "expected_speaker_count" : 3,
+        "expected_turn_count" : 10,
+        "expected_turn_recall" : 1,
+        "extra_actual_turn_count" : 0,
+        "final_speaker_accuracy" : 1,
+        "final_speaker_count_error" : 0,
+        "final_speaker_coverage_recall" : 1,
+        "late_finalization_p95_ms" : 759.9999999999998,
+        "live_speaker_accuracy" : 1,
+        "live_speaker_count_error" : 0,
+        "live_speaker_coverage_recall" : 1,
+        "missing_expected_turn_count" : 0,
+        "missing_speech_end_count" : 0,
+        "offline_runtime_rtf" : 0.0912863070539419,
+        "session_coverage_ratio" : 1,
+        "split_merge_error_count" : 0,
+        "turn_boundary_mae_ms" : 0,
+        "unclear_rate" : 0
+      },
+      "notes" : [
+
+      ]
+    }
+  ],
+  "generated_at" : "2026-03-19T23:07:57Z",
+  "variant" : "pinned_tuned"
+}

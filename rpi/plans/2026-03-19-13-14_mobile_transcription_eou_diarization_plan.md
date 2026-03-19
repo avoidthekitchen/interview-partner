@@ -54,9 +54,9 @@ Create deterministic evaluation infrastructure before changing the live pipeline
 #### 1. Add a services test target and reusable evaluation module
 **File**: `Packages/InterviewPartnerServices/Package.swift`
 **Changes**:
-- [ ] Add a `testTarget` for `InterviewPartnerServicesTests` with resource support for fixture JSON/audio files.
-- [ ] Add an executable target such as `InterviewPartnerTranscriptionEvalCLI` so benchmark runs can emit JSON/Markdown reports outside a test runner.
-- [ ] Keep the eval target isolated from UI concerns so it can run on macOS in local automation.
+- [x] Add a `testTarget` for `InterviewPartnerServicesTests` with resource support for fixture JSON/audio files.
+- [x] Add an executable target such as `InterviewPartnerTranscriptionEvalCLI` so benchmark runs can emit JSON/Markdown reports outside a test runner.
+- [x] Keep the eval target isolated from UI concerns so it can run on macOS in local automation.
 
     ```swift
     .testTarget(
@@ -71,9 +71,9 @@ Create deterministic evaluation infrastructure before changing the live pipeline
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/Transcription/TranscriptDeltaAccumulator.swift`
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/Transcription/TurnAttributionModels.swift`
 **Changes**:
-- [ ] Move cumulative-transcript diffing, turn-window attribution, and reconciliation helpers into pure types that can be exercised without `AVAudioEngine`.
-- [ ] Introduce a fixture-friendly input model for transcript callbacks, diarization segments, optional VAD events, and expected turns.
-- [ ] Leave `DefaultTranscriptionService` as the orchestrator, but remove phase-specific scoring logic from it.
+- [x] Move cumulative-transcript diffing, turn-window attribution, and reconciliation helpers into pure types that can be exercised without `AVAudioEngine`.
+- [x] Introduce a fixture-friendly input model for transcript callbacks, diarization segments, optional VAD events, and expected turns.
+- [x] Leave `DefaultTranscriptionService` as the orchestrator, but remove phase-specific scoring logic from it.
 
     ```swift
     struct ReplayFrame: Codable, Sendable {
@@ -91,9 +91,9 @@ Create deterministic evaluation infrastructure before changing the live pipeline
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/TranscriptionEvaluation/TranscriptionBenchmarkRunner.swift`
 **File**: `rpi/evals/mobile_transcription/baseline_metrics.json`
 **Changes**:
-- [ ] Define a small but representative fixture set covering backchannels, pauses, early-token revisions, overlap, and diarization ambiguity.
-- [ ] Check in baseline expectations and a report format that records metric names, counts, and threshold status.
-- [ ] Store the initial baseline report under `rpi/evals/mobile_transcription/` so later phases compare against a stable target.
+- [x] Define a small but representative fixture set covering backchannels, pauses, early-token revisions, overlap, and diarization ambiguity.
+- [x] Check in baseline expectations and a report format that records metric names, counts, and threshold status.
+- [x] Store the initial baseline report under `rpi/evals/mobile_transcription/` so later phases compare against a stable target.
 
     ```json
     {
@@ -113,20 +113,20 @@ Create deterministic evaluation infrastructure before changing the live pipeline
 **File**: `Packages/InterviewPartnerServices/Tests/InterviewPartnerServicesTests/TranscriptionEvaluationTests.swift`
 **File**: `Packages/InterviewPartnerServices/Tests/InterviewPartnerServicesTests/TurnAttributionTests.swift`
 **Changes**:
-- [ ] Add unit tests for delta extraction, turn-window overlap matching, split/merge scoring, and report parsing.
-- [ ] Add a regression test that fails when benchmark output exceeds the checked-in tolerance envelope.
-- [ ] Add a README section documenting the benchmark command used after every phase.
+- [x] Add unit tests for delta extraction, turn-window overlap matching, split/merge scoring, and report parsing.
+- [x] Add a regression test that fails when benchmark output exceeds the checked-in tolerance envelope.
+- [x] Add a README section documenting the benchmark command used after every phase.
 
 ### Success Criteria
 #### Automated Verification
-- [ ] Package tests pass: `swift test --package-path Packages/InterviewPartnerServices`
-- [ ] Workspace tests still pass: `xcodebuild test -workspace InterviewPartner.xcworkspace -scheme InterviewPartner -destination 'platform=iOS Simulator,name=iPhone 15'`
-- [ ] Benchmark report generates successfully: `swift run --package-path Packages/InterviewPartnerServices InterviewPartnerTranscriptionEvalCLI --fixture-set baseline --output rpi/evals/mobile_transcription/latest.json`
-- [ ] Baseline tolerances are checked in and enforced by tests.
+- [x] Package tests pass: `swift test --package-path Packages/InterviewPartnerServices`
+- [x] Workspace tests still pass: `xcodebuild test -workspace InterviewPartner.xcworkspace -scheme InterviewPartner -destination 'platform=iOS Simulator,name=iPhone 15'`
+- [x] Benchmark report generates successfully: `swift run --package-path Packages/InterviewPartnerServices InterviewPartnerTranscriptionEvalCLI --fixture-set baseline --output rpi/evals/mobile_transcription/latest.json`
+- [x] Baseline tolerances are checked in and enforced by tests.
 
 #### Manual Verification
-- [ ] Fixture report is readable enough to answer “did EOU improve?” and “did speaker labeling improve?” without inspecting raw logs.
-- [ ] Fixture set includes at least one case for each known failure mode from the research memo 2026-03-19-13-04_research_mobile_transcription_eou_diarization.md.
+- [x] Fixture report is readable enough to answer “did EOU improve?” and “did speaker labeling improve?” without inspecting raw logs.
+- [x] Fixture set includes at least one case for each known failure mode from the research memo 2026-03-19-13-04_research_mobile_transcription_eou_diarization.md.
 
 ---
 
@@ -140,10 +140,10 @@ Keep the existing live ASR surface, but use streaming VAD to define utterance wi
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/Transcription/VadBoundaryTracker.swift`
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/TranscriptionServices.swift`
 **Changes**:
-- [ ] Load and reset `VadManager` alongside ASR and live diarization.
-- [ ] Feed the audio tap into VAD in parallel with ASR and diarization.
-- [ ] Track `speechStart` / `speechEnd` events and expose a “best current utterance window” for turn finalization.
-- [ ] Fall back to the old debounce-based estimator only when VAD is unavailable or incomplete.
+- [x] Load and reset `VadManager` alongside ASR and live diarization.
+- [x] Feed the audio tap into VAD in parallel with ASR and diarization.
+- [x] Track `speechStart` / `speechEnd` events and expose a “best current utterance window” for turn finalization.
+- [x] Fall back to the old debounce-based estimator only when VAD is unavailable or incomplete.
 
     ```swift
     struct UtteranceWindow: Sendable {
@@ -157,25 +157,25 @@ Keep the existing live ASR surface, but use streaming VAD to define utterance wi
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/Transcription/LiveTurnAssembler.swift`
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/TranscriptionServices.swift`
 **Changes**:
-- [ ] Replace `attributeNextTurn(eouDebounceMs:)` with a turn assembly path that takes VAD-derived start/end times.
-- [ ] Continue using `StreamingEouAsrManager` EOU callbacks as the text-finalization signal for phase 2.
-- [ ] Detect and log cases where ASR finalization arrives without a matching `speechEnd` so those misses appear in the benchmark report.
-- [ ] Preserve gap detection, but base it on speech windows rather than last assigned debounce boundary.
+- [x] Replace `attributeNextTurn(eouDebounceMs:)` with a turn assembly path that takes VAD-derived start/end times.
+- [x] Continue using `StreamingEouAsrManager` EOU callbacks as the text-finalization signal for phase 2.
+- [x] Detect and log cases where ASR finalization arrives without a matching `speechEnd` so those misses appear in the benchmark report.
+- [x] Preserve gap detection, but base it on speech windows rather than last assigned debounce boundary.
 
 #### 3. Extend the benchmark to score VAD-aware boundaries
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/TranscriptionEvaluation/BoundaryMetrics.swift`
 **File**: `Packages/InterviewPartnerServices/Tests/InterviewPartnerServicesTests/VadBoundaryTrackerTests.swift`
 **Changes**:
-- [ ] Add metrics for turn-boundary mean absolute error, p95 late finalization, and split/merge count against annotated utterance windows.
-- [ ] Add replay fixtures with VAD events and audio-backed cases that exercise short acknowledgements and long intra-turn pauses.
-- [ ] Fail the phase if VAD integration regresses diarization accuracy or increases duplication.
+- [x] Add metrics for turn-boundary mean absolute error, p95 late finalization, and split/merge count against annotated utterance windows.
+- [x] Add replay fixtures with VAD events and audio-backed cases that exercise short acknowledgements and long intra-turn pauses.
+- [x] Fail the phase if VAD integration regresses diarization accuracy or increases duplication.
 
 ### Success Criteria
 #### Automated Verification
-- [ ] Phase 1 benchmark command still runs on the same fixture set.
-- [ ] `turn_boundary_mae_ms` and `late_finalization_p95_ms` improve versus the Phase 1 baseline on the benchmark corpus.
-- [ ] `split_merge_error_count` does not regress on any fixture.
-- [ ] Package and workspace tests still pass.
+- [x] Phase 1 benchmark command still runs on the same fixture set.
+- [x] `turn_boundary_mae_ms` and `late_finalization_p95_ms` improve versus the Phase 1 baseline on the benchmark corpus.
+- [x] `split_merge_error_count` does not regress on any fixture.
+- [x] Package and workspace tests still pass.
 
 #### Manual Verification
 - [ ] Short acknowledgements no longer get routinely merged into the previous speaker turn.
@@ -193,19 +193,19 @@ Keep provisional live labels for in-session readability, but compute the durable
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/Transcription/SessionAudioCapture.swift`
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/TranscriptionServices.swift`
 **Changes**:
-- [ ] Add a local-only audio writer that records the session mic stream to a temporary WAV/CAF file.
-- [ ] Start capture with the live session and stop capture before reconciliation begins.
-- [ ] Guarantee best-effort deletion on success, failure, and cancellation paths.
-- [ ] Keep the temp-file path out of persistent session storage unless a future explicit opt-in feature needs it.
+- [x] Add a local-only audio writer that records the session mic stream to a temporary WAV/CAF file.
+- [x] Start capture with the live session and stop capture before reconciliation begins.
+- [x] Guarantee best-effort deletion on success, failure, and cancellation paths.
+- [x] Keep the temp-file path out of persistent session storage unless a future explicit opt-in feature needs it.
 
 #### 2. Reconcile finalized turns with `OfflineDiarizerManager`
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/Transcription/OfflineDiarizationReconciler.swift`
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/TranscriptionServices.swift`
 **Changes**:
-- [ ] Prepare offline diarization models on demand and run the offline pass during `stop()`.
-- [ ] Re-label finalized turns using the VAD-grounded turn windows from Phase 2.
-- [ ] Preserve live provisional labels in memory/UI during capture, but mark persisted/exported labels as final only after offline reconciliation completes.
-- [ ] Define a fallback path that keeps live reconciled labels if offline diarization fails or exceeds a runtime limit.
+- [x] Prepare offline diarization models on demand and run the offline pass during `stop()`.
+- [x] Re-label finalized turns using the VAD-grounded turn windows from Phase 2.
+- [x] Preserve live provisional labels in memory/UI during capture, but mark persisted/exported labels as final only after offline reconciliation completes.
+- [x] Define a fallback path that keeps live reconciled labels if offline diarization fails or exceeds a runtime limit.
 
     ```swift
     struct FinalSpeakerReconciliationResult: Sendable {
@@ -220,24 +220,24 @@ Keep provisional live labels for in-session readability, but compute the durable
 **File**: `README.md`
 **File**: `docs/interview-partner-prd-v2.md`
 **Changes**:
-- [ ] Update the disclosure text to explain that temporary local audio may exist only until the session’s on-device finalization completes.
-- [ ] Keep the product guarantee that audio is not uploaded and is deleted by default after finalization.
-- [ ] Document benchmark/runtime expectations for the offline pass.
+- [x] Update the disclosure text to explain that temporary local audio may exist only until the session’s on-device finalization completes.
+- [x] Keep the product guarantee that audio is not uploaded and is deleted by default after finalization.
+- [x] Document benchmark/runtime expectations for the offline pass.
 
 #### 4. Extend the benchmark for live-vs-final speaker scoring
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/TranscriptionEvaluation/SpeakerMetrics.swift`
 **File**: `Packages/InterviewPartnerServices/Tests/InterviewPartnerServicesTests/OfflineDiarizationReconcilerTests.swift`
 **Changes**:
-- [ ] Score provisional live labels and final offline labels separately.
-- [ ] Record `unclear_rate`, final speaker accuracy, and offline runtime/real-time factor in the report.
-- [ ] Add a no-regression threshold so final labels must beat or match Phase 2 on speaker accuracy before this phase ships.
+- [x] Score provisional live labels and final offline labels separately.
+- [x] Record `unclear_rate`, final speaker accuracy, and offline runtime/real-time factor in the report.
+- [x] Add a no-regression threshold so final labels must beat or match Phase 2 on speaker accuracy before this phase ships.
 
 ### Success Criteria
 #### Automated Verification
-- [ ] Benchmark report includes both live and final speaker metrics.
-- [ ] `final_speaker_accuracy` improves versus Phase 2 on the benchmark corpus.
-- [ ] `offline_runtime_rtf` stays within the agreed threshold for target hardware.
-- [ ] Temp audio files are deleted in automated tests after reconciliation/failure paths.
+- [x] Benchmark report includes both live and final speaker metrics.
+- [x] `final_speaker_accuracy` improves versus Phase 2 on the benchmark corpus.
+- [x] `offline_runtime_rtf` stays within the agreed threshold for target hardware.
+- [x] Temp audio files are deleted in automated tests after reconciliation/failure paths.
 
 #### Manual Verification
 - [ ] During capture, the UI still behaves like today with provisional labels.
@@ -255,9 +255,9 @@ Use the benchmark harness to evaluate whether Sortformer config changes or a Flu
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/Transcription/DiarizationTuning.swift`
 **File**: `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/TranscriptionServices.swift`
 **Changes**:
-- [ ] Extract Sortformer config/post-processing defaults into a single tuning surface rather than hardcoding `.default`.
-- [ ] Support benchmark variants for the pinned revision’s available configs and post-processing thresholds.
-- [ ] Keep production default unchanged until the benchmark identifies a winner.
+- [x] Extract Sortformer config/post-processing defaults into a single tuning surface rather than hardcoding `.default`.
+- [x] Support benchmark variants for the pinned revision’s available configs and post-processing thresholds.
+- [x] Keep production default unchanged until the benchmark identifies a winner.
 
 #### 2. Benchmark a FluidAudio revision bump separately from config-only changes
 **File**: `Packages/InterviewPartnerServices/Package.swift`
@@ -272,12 +272,12 @@ Use the benchmark harness to evaluate whether Sortformer config changes or a Flu
 **File**: `rpi/evals/mobile_transcription/README.md`
 **Changes**:
 - [ ] Emit side-by-side variant comparisons for current default, tuned pinned config, and bumped dependency config.
-- [ ] Define a single “recommended production config” artifact checked into the repo after the benchmark decision.
+- [x] Define a single “recommended production config” artifact checked into the repo after the benchmark decision.
 
 ### Success Criteria
 #### Automated Verification
-- [ ] Variant benchmark report runs for all tested configs.
-- [ ] Selected production config improves final speaker metrics or clearly reduces `Unclear` rate with no material boundary regression.
+- [x] Variant benchmark report runs for all tested configs.
+- [x] Selected production config improves final speaker metrics or clearly reduces `Unclear` rate with no material boundary regression.
 - [ ] If a dependency bump is chosen, workspace build/tests still pass on the app scheme.
 
 #### Manual Verification
@@ -290,6 +290,8 @@ Use the benchmark harness to evaluate whether Sortformer config changes or a Flu
 
 ### Overview
 If the Phase 2-4 improvements still leave unacceptable EOU quality, replace the string-diff EOU path with token-timed streaming ASR updates.
+
+Current status: benchmark evidence from the checked-in replay corpus improved boundary metrics enough that this escalation path remains gated and unstarted.
 
 ### Changes Required
 #### 1. Introduce a lower-level live transcription pipeline

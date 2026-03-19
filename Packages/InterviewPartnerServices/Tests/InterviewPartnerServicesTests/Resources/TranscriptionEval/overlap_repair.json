@@ -1,0 +1,55 @@
+{
+  "fixture_id": "overlap_repair",
+  "fixture_set": "baseline",
+  "description": "Overlapping handoff should prefer tighter VAD windows and offline final labels over a broad debounce estimate.",
+  "audio_file_name": "two_speaker_pause.wav",
+  "frames": [
+    {
+      "elapsed_seconds": 0.12,
+      "cumulative_transcript": "I can start",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.12, "is_final": false }
+      ],
+      "vad_event": { "kind": "speechStart", "time_seconds": 0.0 },
+      "eou_detected": false
+    },
+    {
+      "elapsed_seconds": 0.9,
+      "cumulative_transcript": "I can start",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true }
+      ],
+      "vad_event": { "kind": "speechEnd", "time_seconds": 0.55 },
+      "eou_detected": true
+    },
+    {
+      "elapsed_seconds": 0.98,
+      "cumulative_transcript": "I can start and I can finish",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.45, "end_time_seconds": 0.98, "is_final": false }
+      ],
+      "vad_event": { "kind": "speechStart", "time_seconds": 0.45 },
+      "eou_detected": false
+    },
+    {
+      "elapsed_seconds": 1.6,
+      "cumulative_transcript": "I can start and I can finish",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.45, "end_time_seconds": 1.0, "is_final": true }
+      ],
+      "vad_event": { "kind": "speechEnd", "time_seconds": 1.0 },
+      "eou_detected": true
+    }
+  ],
+  "expected_turns": [
+    { "text": "I can start", "speaker_label": "Speaker A", "start_seconds": 0.0, "end_seconds": 0.55 },
+    { "text": "and I can finish", "speaker_label": "Speaker B", "start_seconds": 0.45, "end_seconds": 1.0 }
+  ],
+  "offline_diarization_segments": [
+    { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+    { "speaker_index": 1, "start_time_seconds": 0.45, "end_time_seconds": 1.0, "is_final": true }
+  ],
+  "offline_runtime_seconds": 0.31
+}
