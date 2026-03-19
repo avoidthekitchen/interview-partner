@@ -1,6 +1,7 @@
 import Observation
 import OSLog
 import SwiftUI
+import UIKit
 import InterviewPartnerDomain
 import InterviewPartnerServices
 
@@ -25,6 +26,7 @@ final class SessionSetupCoordinator: Identifiable {
     var participantLabel = ""
     var errorMessage: String?
     var isStarting = false
+    var microphonePermissionDenied = false
 
     init(
         guideRepository: any GuideRepository,
@@ -45,6 +47,7 @@ final class SessionSetupCoordinator: Identifiable {
             guides = try guideRepository.fetchGuides()
             selectedGuideID = selectedGuideID ?? guides.first?.id
             errorMessage = nil
+            refreshMicrophonePermissionState()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -70,9 +73,12 @@ final class SessionSetupCoordinator: Identifiable {
         }
 
         guard permissionState == .granted else {
-            errorMessage = "Microphone access is required to run a live interview session."
+            microphonePermissionDenied = true
+            errorMessage = nil
             return nil
         }
+
+        microphonePermissionDenied = false
 
         do {
             guard let guideDraft = try guideRepository.fetchGuide(id: selectedGuideID) else {
@@ -96,6 +102,15 @@ final class SessionSetupCoordinator: Identifiable {
             errorMessage = error.localizedDescription
             return nil
         }
+    }
+
+    func refreshMicrophonePermissionState() {
+        microphonePermissionDenied = permissionManager.microphonePermissionState() == .denied
+    }
+
+    func openAppSettings() {
+        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(settingsURL)
     }
 }
 
@@ -373,6 +388,7 @@ public struct SessionListView: View {
 
 private struct SessionSetupSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var coordinator: SessionSetupCoordinator
     let onCancel: () -> Void
     let onStart: (SessionCoordinator) -> Void
@@ -392,6 +408,16 @@ private struct SessionSetupSheet: View {
 
         NavigationStack {
             Form {
+                if coordinator.microphonePermissionDenied {
+                    Section("Microphone Access Needed") {
+                        Text("Interview Partner needs microphone access to capture and transcribe the live interview.")
+                            .font(.body)
+                        Button("Open Settings") {
+                            coordinator.openAppSettings()
+                        }
+                    }
+                }
+
                 Section("Guide") {
                     Picker("Interview Guide", selection: $bindable.selectedGuideID) {
                         ForEach(coordinator.guides) { guide in
@@ -433,6 +459,10 @@ private struct SessionSetupSheet: View {
             }
             .task {
                 coordinator.load()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                guard newPhase == .active else { return }
+                coordinator.refreshMicrophonePermissionState()
             }
             .alert(
                 "Session Setup Error",

@@ -4,6 +4,9 @@ import InterviewPartnerServices
 public struct InterviewPartnerRootView: View {
     private let appEnvironment: AppEnvironment
     @State private var workspaceRefreshToken = UUID()
+    @AppStorage(InterviewPartnerAppStorageKey.hasAcknowledgedPrivacyDisclosure)
+    private var hasAcknowledgedPrivacyDisclosure = false
+    @State private var showPrivacyDisclosure = false
 
     public init(appEnvironment: AppEnvironment) {
         self.appEnvironment = appEnvironment
@@ -43,6 +46,25 @@ public struct InterviewPartnerRootView: View {
             .tabItem {
                 Label("Settings", systemImage: "gearshape")
             }
+        }
+        .onAppear {
+            if !hasAcknowledgedPrivacyDisclosure && !showPrivacyDisclosure {
+                showPrivacyDisclosure = true
+            }
+        }
+        .onChange(of: hasAcknowledgedPrivacyDisclosure) { _, hasAcknowledged in
+            if !hasAcknowledged {
+                showPrivacyDisclosure = true
+            }
+        }
+        .fullScreenCover(isPresented: $showPrivacyDisclosure) {
+            PrivacyDisclosureSheet(
+                title: "Privacy Disclosure",
+                dismissLabel: "Continue",
+                onDismiss: {
+                    showPrivacyDisclosure = false
+                }
+            )
         }
     }
 }

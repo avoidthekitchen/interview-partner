@@ -74,7 +74,7 @@ public final class SwiftDataSessionRepository: SessionRepository {
             questionStatuses: questionStatuses
         )
         modelContainer.mainContext.insert(session)
-        try modelContainer.mainContext.save()
+        try saveContext("create session")
         return Self.record(from: session)
     }
 
@@ -94,7 +94,7 @@ public final class SwiftDataSessionRepository: SessionRepository {
         )
         modelContainer.mainContext.insert(turnModel)
         session.transcriptTurns.append(turnModel)
-        try modelContainer.mainContext.save()
+        try saveContext("append transcript turn")
     }
 
     public func appendTranscriptGap(_ gap: InterviewPartnerDomain.TranscriptGap, to sessionID: UUID) throws {
@@ -109,7 +109,7 @@ public final class SwiftDataSessionRepository: SessionRepository {
         )
         modelContainer.mainContext.insert(gapModel)
         session.transcriptGaps.append(gapModel)
-        try modelContainer.mainContext.save()
+        try saveContext("append transcript gap")
     }
 
     public func upsertQuestionStatus(_ status: QuestionAnswerStatus, for sessionID: UUID) throws {
@@ -130,7 +130,7 @@ public final class SwiftDataSessionRepository: SessionRepository {
             session.questionStatuses.append(newStatus)
         }
 
-        try modelContainer.mainContext.save()
+        try saveContext("upsert question status")
     }
 
     public func appendAdHocNote(_ note: InterviewPartnerDomain.AdHocNote, to sessionID: UUID) throws {
@@ -143,7 +143,7 @@ public final class SwiftDataSessionRepository: SessionRepository {
         )
         modelContainer.mainContext.insert(noteModel)
         session.adHocNotes.append(noteModel)
-        try modelContainer.mainContext.save()
+        try saveContext("append ad hoc note")
     }
 
     public func updateTranscriptTurn(
@@ -164,7 +164,7 @@ public final class SwiftDataSessionRepository: SessionRepository {
         existing.speakerMatchConfidence = turn.speakerMatchConfidence
         existing.speakerLabelIsProvisional = turn.speakerLabelIsProvisional
 
-        try modelContainer.mainContext.save()
+        try saveContext("update transcript turn")
         logger.info(
             "Updated transcript turn \(turn.id.uuidString, privacy: .public) in session \(sessionID.uuidString, privacy: .public)"
         )
@@ -191,7 +191,7 @@ public final class SwiftDataSessionRepository: SessionRepository {
             turn.speakerLabelIsProvisional = false
         }
 
-        try modelContainer.mainContext.save()
+        try saveContext("rename speaker label")
         logger.info(
             "Renamed speaker label in session \(sessionID.uuidString, privacy: .public) from \(originalLabel, privacy: .public) to \(trimmedLabel, privacy: .public)"
         )
@@ -234,7 +234,7 @@ public final class SwiftDataSessionRepository: SessionRepository {
             )
         }
 
-        try modelContainer.mainContext.save()
+        try saveContext("finalize session")
         return Self.record(from: session)
     }
 
@@ -243,7 +243,7 @@ public final class SwiftDataSessionRepository: SessionRepository {
         guard let queueEntry = session.exportQueueEntries.first else { return }
         queueEntry.attemptCount += 1
         queueEntry.lastAttemptAt = attemptedAt
-        try modelContainer.mainContext.save()
+        try saveContext("record export attempt")
         logger.info(
             "Recorded export attempt \(queueEntry.attemptCount, privacy: .public) for session \(sessionID.uuidString, privacy: .public)"
         )
@@ -255,7 +255,7 @@ public final class SwiftDataSessionRepository: SessionRepository {
             modelContainer.mainContext.delete(queueEntry)
         }
         session.exportQueueEntries.removeAll()
-        try modelContainer.mainContext.save()
+        try saveContext("mark export completed")
         logger.info(
             "Cleared export queue for session \(sessionID.uuidString, privacy: .public)"
         )
@@ -277,6 +277,28 @@ public final class SwiftDataSessionRepository: SessionRepository {
             throw CocoaError(.fileNoSuchFile)
         }
         return session
+    }
+
+    private func saveContext(_ operation: String) throws {
+        do {
+            try modelContainer.mainContext.save()
+        } catch {
+            logger.error(
+                "SwiftData save failed during \(operation, privacy: .public). Retrying once. Error: \(error.localizedDescription, privacy: .public)"
+            )
+
+            do {
+                try modelContainer.mainContext.save()
+                logger.info(
+                    "SwiftData retry succeeded during \(operation, privacy: .public)"
+                )
+            } catch {
+                logger.error(
+                    "SwiftData retry failed during \(operation, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                )
+                throw error
+            }
+        }
     }
 
     private static func record(from session: Session) -> SessionRecord {
