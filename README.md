@@ -1,4 +1,5 @@
-# InterviewPartner - iOS App
+# InterviewPartner - iOS App <img width="35" height="34" alt="image" src="https://github.com/user-attachments/assets/71871687-7e7f-4616-a66a-b9a78a75ef5a" />
+
 
 ## Background
 
