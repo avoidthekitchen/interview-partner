@@ -94,19 +94,100 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
         return try write(data: data, relativePath: relativePath)
     }
 
+    public func generateTranscriptMarkdown(session: SessionRecord) -> String {
+        let transcriptBody = transcriptLines(for: session).joined(separator: "\n")
+        let noteLines = session.adHocNotes.map { note in
+            "- [\(transcriptTimeFormatter.string(from: note.timestamp))] \(note.text)"
+        }
+        let coverageSummaryLines = QuestionPriority.allCases.flatMap { priority in
+            coverageLines(for: session, priority: priority)
+        }
+
+        let title = session.participantLabel ?? session.guideSnapshot.name
+        let sessionDate = headerDateFormatter.string(from: session.startedAt)
+        let startTime = headerTimeFormatter.string(from: session.startedAt)
+        let endTime = session.endedAt.map { headerTimeFormatter.string(from: $0) } ?? "In progress"
+
+        return [
+            "# \(title)",
+            "",
+            "- Guide: \(session.guideSnapshot.name)",
+            "- Date: \(sessionDate)",
+            "- Started: \(startTime)",
+            "- Ended: \(endTime)",
+            "",
+            "## Transcript",
+            transcriptBody.isEmpty ? "_No transcript captured._" : transcriptBody,
+            "",
+            "## Ad Hoc Notes",
+            noteLines.isEmpty ? "_No ad hoc notes._" : noteLines.joined(separator: "\n"),
+            "",
+            "## Coverage Summary",
+            coverageSummaryLines.isEmpty ? "_No guide questions._" : coverageSummaryLines.joined(separator: "\n"),
+        ].joined(separator: "\n")
+    }
+
+    public func generateSessionJSON(session: SessionRecord) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+
+        let document = SessionExportDocument(
+            id: session.id,
+            guide: session.guideSnapshot,
+            participantLabel: session.participantLabel,
+            startedAt: session.startedAt,
+            endedAt: session.endedAt,
+            transcriptTurns: session.transcriptTurns
+                .sorted { $0.timestamp < $1.timestamp }
+                .map {
+                    SessionExportTurn(
+                        id: $0.id,
+                        reconciledSpeakerLabel: normalizedSpeakerLabel($0.speakerLabel),
+                        text: $0.text,
+                        timestamp: $0.timestamp,
+                        isFinal: $0.isFinal,
+                        startTimeSeconds: $0.startTimeSeconds,
+                        endTimeSeconds: $0.endTimeSeconds,
+                        liveSpeakerMatchConfidence: $0.speakerMatchConfidence
+                    )
+                },
+            transcriptGaps: session.transcriptGaps
+                .sorted { $0.startTimestamp < $1.startTimestamp }
+                .map {
+                    SessionExportGap(
+                        id: $0.id,
+                        startTimestamp: $0.startTimestamp,
+                        endTimestamp: $0.endTimestamp,
+                        reason: $0.reason
+                    )
+                },
+            questionStatuses: session.guideSnapshot.questions
+                .sorted { $0.orderIndex < $1.orderIndex }
+                .map { question in
+                    SessionExportQuestionStatus(
+                        questionID: question.id,
+                        questionText: question.text,
+                        priority: question.priority,
+                        orderIndex: question.orderIndex,
+                        status: status(for: question.id, in: session),
+                        aiScore: session.questionStatuses.first(where: { $0.questionID == question.id })?.aiScore
+                    )
+                },
+            adHocNotes: session.adHocNotes.sorted { $0.timestamp < $1.timestamp },
+            branch: nil,
+            aiScoringPromptOverride: nil
+        )
+
+        return try encoder.encode(document)
+    }
+
     @discardableResult
-    public func exportSessionBundle(_ bundle: SessionExportBundle) throws -> [URL] {
+    public func exportSessionBundle(_ bundle: SessionExportBundle) throws -> SessionExportResult {
         let folderName = sessionFolderName(
             startedAt: bundle.startedAt,
             sessionID: bundle.sessionID
-        )
-        let markdownURL = try write(
-            data: Data(bundle.markdown.utf8),
-            relativePath: "InterviewPartner/sessions/\(folderName)/transcript.md"
-        )
-        let jsonURL = try write(
-            data: bundle.jsonData,
-            relativePath: "InterviewPartner/sessions/\(folderName)/session.json"
         )
         let tempMarkdownURL = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("\(folderName)-transcript.md")
@@ -115,7 +196,31 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
 
         try Data(bundle.markdown.utf8).write(to: tempMarkdownURL, options: .atomic)
         try bundle.jsonData.write(to: tempJSONURL, options: .atomic)
-        return [markdownURL, jsonURL, tempMarkdownURL, tempJSONURL]
+
+        do {
+            let markdownURL = try write(
+                data: Data(bundle.markdown.utf8),
+                relativePath: "InterviewPartner/sessions/\(folderName)/transcript.md"
+            )
+            let jsonURL = try write(
+                data: bundle.jsonData,
+                relativePath: "InterviewPartner/sessions/\(folderName)/session.json"
+            )
+
+            return SessionExportResult(
+                temporaryFileURLs: [tempMarkdownURL, tempJSONURL],
+                workspaceFileURLs: [markdownURL, jsonURL],
+                workspaceWriteSucceeded: true,
+                workspaceErrorDescription: nil
+            )
+        } catch {
+            return SessionExportResult(
+                temporaryFileURLs: [tempMarkdownURL, tempJSONURL],
+                workspaceFileURLs: [],
+                workspaceWriteSucceeded: false,
+                workspaceErrorDescription: error.localizedDescription
+            )
+        }
     }
 
     private func write(data: Data, relativePath: String) throws -> URL {
@@ -171,6 +276,72 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
         return "\(formatter.string(from: startedAt))-\(sessionID.uuidString.lowercased())"
     }
 
+    private func transcriptLines(for session: SessionRecord) -> [String] {
+        let turnLines = session.transcriptTurns.map { turn in
+            MarkdownLine(
+                sortDate: turn.timestamp,
+                text: "[\(transcriptTimeFormatter.string(from: turn.timestamp))] \(normalizedSpeakerLabel(turn.speakerLabel)): \(turn.text)"
+            )
+        }
+        let gapLines = session.transcriptGaps.map { gap in
+            MarkdownLine(
+                sortDate: gap.startTimestamp,
+                text: "[transcription unavailable \(transcriptTimeFormatter.string(from: gap.startTimestamp))-\(transcriptTimeFormatter.string(from: gap.endTimestamp))]"
+            )
+        }
+
+        return (turnLines + gapLines)
+            .sorted { $0.sortDate < $1.sortDate }
+            .map(\.text)
+    }
+
+    private func coverageLines(for session: SessionRecord, priority: QuestionPriority) -> [String] {
+        let questions = session.guideSnapshot.questions
+            .filter { $0.priority == priority }
+            .sorted { $0.orderIndex < $1.orderIndex }
+
+        guard !questions.isEmpty else { return [] }
+
+        var lines = ["### \(priority.title)"]
+        lines.append(contentsOf: questions.map { question in
+            let status = status(for: question.id, in: session).title
+            return "- [\(status)] \(question.text)"
+        })
+        return lines
+    }
+
+    private func status(for questionID: UUID, in session: SessionRecord) -> QuestionCoverageStatus {
+        session.questionStatuses.first(where: { $0.questionID == questionID })?.status ?? .notStarted
+    }
+
+    private func normalizedSpeakerLabel(_ label: String) -> String {
+        let trimmedLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedLabel.isEmpty ? "Unclear" : trimmedLabel
+    }
+
+    private var headerDateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateStyle = .long
+        formatter.timeStyle = .none
+        return formatter
+    }
+
+    private var headerTimeFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter
+    }
+
+    private var transcriptTimeFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }
+
     private var bookmarkCreationOptions: URL.BookmarkCreationOptions {
         #if os(macOS)
         [.withSecurityScope]
@@ -191,4 +362,9 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
 private struct ResolvedWorkspace {
     let baseURL: URL
     let stopAccessing: () -> Void
+}
+
+private struct MarkdownLine {
+    let sortDate: Date
+    let text: String
 }

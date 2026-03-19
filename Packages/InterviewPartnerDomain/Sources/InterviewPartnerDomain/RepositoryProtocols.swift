@@ -15,6 +15,7 @@ public protocol GuideRepository: AnyObject {
 public protocol SessionRepository: AnyObject {
     func fetchSessions() throws -> [SessionSummary]
     func fetchSession(id: UUID) throws -> SessionRecord?
+    func fetchPendingExportSessions() throws -> [SessionRecord]
     @discardableResult
     func createSession(
         guideSnapshot: GuideSnapshot,
@@ -24,11 +25,22 @@ public protocol SessionRepository: AnyObject {
     func appendTranscriptGap(_ gap: TranscriptGap, to sessionID: UUID) throws
     func upsertQuestionStatus(_ status: QuestionAnswerStatus, for sessionID: UUID) throws
     func appendAdHocNote(_ note: AdHocNote, to sessionID: UUID) throws
+    @discardableResult
+    func updateTranscriptTurn(_ turn: TranscriptTurn, in sessionID: UUID) throws -> SessionRecord
+    @discardableResult
+    func renameSpeakerLabel(
+        in sessionID: UUID,
+        from originalLabel: String,
+        to newLabel: String
+    ) throws -> SessionRecord
     func finalizeSession(
         id: UUID,
         endedAt: Date,
         reconciledTurns: [TranscriptTurn]
     ) throws -> SessionRecord
+    func recordExportAttempt(for sessionID: UUID, at attemptedAt: Date) throws
+    @discardableResult
+    func markExportCompleted(for sessionID: UUID) throws -> SessionRecord
 }
 
 @MainActor
@@ -38,8 +50,10 @@ public protocol WorkspaceExporter: AnyObject {
     func saveWorkspaceBookmark(for folderURL: URL) throws -> WorkspaceStatus
     @discardableResult
     func exportGuide(_ guide: GuideExportDocument) throws -> URL
+    func generateTranscriptMarkdown(session: SessionRecord) -> String
+    func generateSessionJSON(session: SessionRecord) throws -> Data
     @discardableResult
-    func exportSessionBundle(_ bundle: SessionExportBundle) throws -> [URL]
+    func exportSessionBundle(_ bundle: SessionExportBundle) throws -> SessionExportResult
 }
 
 @MainActor

@@ -13,6 +13,8 @@ final class SessionSetupCoordinator: Identifiable {
     @ObservationIgnored
     private let sessionRepository: any SessionRepository
     @ObservationIgnored
+    private let workspaceExporter: any WorkspaceExporter
+    @ObservationIgnored
     private let permissionManager: any PermissionManager
     @ObservationIgnored
     private let makeTranscriptionService: @MainActor () -> any TranscriptionService
@@ -26,11 +28,13 @@ final class SessionSetupCoordinator: Identifiable {
     init(
         guideRepository: any GuideRepository,
         sessionRepository: any SessionRepository,
+        workspaceExporter: any WorkspaceExporter,
         permissionManager: any PermissionManager,
         makeTranscriptionService: @escaping @MainActor () -> any TranscriptionService
     ) {
         self.guideRepository = guideRepository
         self.sessionRepository = sessionRepository
+        self.workspaceExporter = workspaceExporter
         self.permissionManager = permissionManager
         self.makeTranscriptionService = makeTranscriptionService
     }
@@ -84,6 +88,7 @@ final class SessionSetupCoordinator: Identifiable {
             return SessionCoordinator(
                 session: session,
                 sessionRepository: sessionRepository,
+                workspaceExporter: workspaceExporter,
                 transcriptionService: makeTranscriptionService()
             )
         } catch {
@@ -99,7 +104,7 @@ final class SessionListCoordinator {
     @ObservationIgnored
     private let guideRepository: any GuideRepository
     @ObservationIgnored
-    private let sessionRepository: any SessionRepository
+    fileprivate let sessionRepository: any SessionRepository
     @ObservationIgnored
     fileprivate let workspaceExporter: any WorkspaceExporter
     @ObservationIgnored
@@ -109,6 +114,7 @@ final class SessionListCoordinator {
 
     var sessions: [SessionSummary] = []
     var workspaceStatus: WorkspaceStatus
+    var pendingExportCount = 0
     var errorMessage: String?
     var showWorkspaceSetup = false
     var showMissingGuideAlert = false
@@ -135,7 +141,24 @@ final class SessionListCoordinator {
 
         do {
             sessions = try sessionRepository.fetchSessions()
+            pendingExportCount = sessions.filter(\.hasPendingExport).count
             errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func drainPendingExports() {
+        do {
+            let pendingSessions = try sessionRepository.fetchPendingExportSessions()
+            for pendingSession in pendingSessions {
+                _ = try performSessionExport(
+                    session: pendingSession,
+                    sessionRepository: sessionRepository,
+                    workspaceExporter: workspaceExporter
+                )
+            }
+            load()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -159,6 +182,7 @@ final class SessionListCoordinator {
             let setup = SessionSetupCoordinator(
                 guideRepository: guideRepository,
                 sessionRepository: sessionRepository,
+                workspaceExporter: workspaceExporter,
                 permissionManager: permissionManager,
                 makeTranscriptionService: makeTranscriptionService
             )
@@ -169,9 +193,17 @@ final class SessionListCoordinator {
             errorMessage = error.localizedDescription
         }
     }
+
+    var warningMessage: String? {
+        sessionListWarningMessage(
+            workspaceStatus: workspaceStatus,
+            pendingExportCount: pendingExportCount
+        )
+    }
 }
 
 public struct SessionListView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var coordinator: SessionListCoordinator
     private let workspaceRefreshToken: UUID
 
@@ -201,7 +233,7 @@ public struct SessionListView: View {
         Group {
             if coordinator.sessions.isEmpty {
                 VStack(spacing: 20) {
-                    if let warningMessage = coordinator.workspaceStatus.warningMessage {
+                    if let warningMessage = coordinator.warningMessage {
                         warningBanner(message: warningMessage)
                     }
 
@@ -220,7 +252,7 @@ public struct SessionListView: View {
                 .padding()
             } else {
                 List {
-                    if let warningMessage = coordinator.workspaceStatus.warningMessage {
+                    if let warningMessage = coordinator.warningMessage {
                         Section {
                             warningBanner(message: warningMessage)
                                 .listRowInsets(EdgeInsets())
@@ -229,7 +261,15 @@ public struct SessionListView: View {
 
                     Section("Past Sessions") {
                         ForEach(coordinator.sessions) { session in
-                            SessionRowView(session: session)
+                            NavigationLink {
+                                SessionReviewContainerView(
+                                    sessionID: session.id,
+                                    sessionRepository: coordinator.sessionRepository,
+                                    workspaceExporter: coordinator.workspaceExporter
+                                )
+                            } label: {
+                                SessionRowView(session: session)
+                            }
                         }
                     }
                 }
@@ -245,9 +285,14 @@ public struct SessionListView: View {
         }
         .task {
             coordinator.load()
+            coordinator.drainPendingExports()
         }
         .onChange(of: workspaceRefreshToken) { _, _ in
-            coordinator.load()
+            coordinator.drainPendingExports()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            coordinator.drainPendingExports()
         }
         .sheet(isPresented: $bindable.showWorkspaceSetup) {
             WorkspaceSetupSheet(
@@ -397,8 +442,19 @@ private struct SessionRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(session.participantLabel ?? session.guideName)
-                .font(.headline)
+            HStack(alignment: .top, spacing: 10) {
+                Text(session.participantLabel ?? session.guideName)
+                    .font(.headline)
+                Spacer(minLength: 8)
+                if session.hasPendingExport {
+                    Text("Pending Export")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.orange.opacity(0.14), in: Capsule())
+                        .foregroundStyle(.orange)
+                }
+            }
             Text(session.guideName)
                 .foregroundStyle(.secondary)
             Text(session.startedAt.formatted(date: .abbreviated, time: .shortened))

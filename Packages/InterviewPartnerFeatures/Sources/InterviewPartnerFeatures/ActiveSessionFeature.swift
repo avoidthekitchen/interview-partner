@@ -12,6 +12,8 @@ final class SessionCoordinator: Identifiable {
     @ObservationIgnored
     private let sessionRepository: any SessionRepository
     @ObservationIgnored
+    private let workspaceExporter: any WorkspaceExporter
+    @ObservationIgnored
     private let transcriptionService: any TranscriptionService
 
     private var timerCancellable: AnyCancellable?
@@ -39,10 +41,12 @@ final class SessionCoordinator: Identifiable {
     init(
         session: SessionRecord,
         sessionRepository: any SessionRepository,
+        workspaceExporter: any WorkspaceExporter,
         transcriptionService: any TranscriptionService
     ) {
         id = session.id
         self.sessionRepository = sessionRepository
+        self.workspaceExporter = workspaceExporter
         self.transcriptionService = transcriptionService
         guideSnapshot = session.guideSnapshot
         participantLabel = session.participantLabel
@@ -100,22 +104,32 @@ final class SessionCoordinator: Identifiable {
         partialTurn = nil
         endedAt = .now
 
+        let finalizedRecord: SessionRecord
         do {
-            let record = try sessionRepository.finalizeSession(
+            finalizedRecord = try sessionRepository.finalizeSession(
                 id: id,
                 endedAt: endedAt ?? .now,
                 reconciledTurns: transcript
             )
-            transcript = record.transcriptTurns
-            gaps = record.transcriptGaps
-            questionStatuses = record.questionStatuses
-            adHocNotes = record.adHocNotes
-            endedAt = record.endedAt
-            didFinishSession = true
+            applySessionRecord(finalizedRecord)
+        } catch {
+            errorMessage = error.localizedDescription
+            isEnding = false
+            return
+        }
+
+        do {
+            let exportOutcome = try performSessionExport(
+                session: finalizedRecord,
+                sessionRepository: sessionRepository,
+                workspaceExporter: workspaceExporter
+            )
+            applySessionRecord(exportOutcome.session)
         } catch {
             errorMessage = error.localizedDescription
         }
 
+        didFinishSession = true
         isEnding = false
     }
 
@@ -265,6 +279,17 @@ final class SessionCoordinator: Identifiable {
             guard let self, skipUndoState?.id == currentToken else { return }
             skipUndoState = nil
         }
+    }
+
+    private func applySessionRecord(_ record: SessionRecord) {
+        guideSnapshot = record.guideSnapshot
+        participantLabel = record.participantLabel
+        startedAt = record.startedAt
+        transcript = record.transcriptTurns
+        gaps = record.transcriptGaps
+        questionStatuses = record.questionStatuses
+        adHocNotes = record.adHocNotes
+        endedAt = record.endedAt
     }
 }
 

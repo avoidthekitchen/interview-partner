@@ -112,11 +112,39 @@ import InterviewPartnerDomain
         ]
     )
 
+    let pendingExports = try repository.fetchPendingExportSessions()
+    let edited = try repository.updateTranscriptTurn(
+        TranscriptTurn(
+            id: turn.id,
+            speakerLabel: "Speaker B",
+            text: "We launched in measured phases.",
+            timestamp: turn.timestamp,
+            isFinal: true,
+            startTimeSeconds: turn.startTimeSeconds,
+            endTimeSeconds: turn.endTimeSeconds,
+            speakerMatchConfidence: 0.91,
+            speakerLabelIsProvisional: false
+        ),
+        in: created.id
+    )
+    let renamed = try repository.renameSpeakerLabel(
+        in: created.id,
+        from: "Speaker B",
+        to: "Candidate"
+    )
+    try repository.recordExportAttempt(for: created.id, at: .now)
+    let completed = try repository.markExportCompleted(for: created.id)
+
     #expect(finalized.transcriptTurns.count == 1)
     #expect(finalized.transcriptTurns.first?.speakerLabel == "Speaker B")
     #expect(finalized.transcriptTurns.first?.speakerLabelIsProvisional == false)
+    #expect(finalized.hasPendingExport == true)
     #expect(finalized.transcriptGaps.count == 1)
     #expect(finalized.adHocNotes.count == 1)
     #expect(finalized.questionStatuses.first?.status == .answered)
     #expect(finalized.endedAt != nil)
+    #expect(pendingExports.count == 1)
+    #expect(edited.transcriptTurns.first?.text == "We launched in measured phases.")
+    #expect(renamed.transcriptTurns.first?.speakerLabel == "Candidate")
+    #expect(completed.hasPendingExport == false)
 }
