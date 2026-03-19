@@ -109,6 +109,42 @@ import Testing
     )
 }
 
+@Test func audioIntegrationRunnerReturnsFailureReportWhenFixtureEvaluationThrows() async throws {
+    let tempRoot = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
+    defer {
+        try? FileManager.default.removeItem(at: tempRoot)
+    }
+
+    let fixture = ReplayFixture(
+        fixtureID: "missing_audio_fixture",
+        fixtureSet: "local_audio_stable",
+        description: "Missing audio file fixture",
+        audioFileName: "missing.m4a",
+        frames: [],
+        expectedTurns: [
+            ReplayExpectedTurn(text: "hello", speakerLabel: "Speaker A", startSeconds: 0, endSeconds: 2),
+            ReplayExpectedTurn(text: "world", speakerLabel: "Speaker B", startSeconds: 2, endSeconds: 4),
+        ],
+        offlineDiarizationSegments: [],
+        offlineRuntimeSeconds: 0
+    )
+
+    let report = try await AudioIntegrationBenchmarkRunner.run(
+        fixtures: [fixture],
+        fixturesRoot: tempRoot,
+        variant: .phase1Baseline
+    )
+
+    let evaluatedFixture = try #require(report.fixtures.first)
+    #expect(evaluatedFixture.metrics.actualLiveTurnCount == 0)
+    #expect(evaluatedFixture.metrics.expectedTurnRecall == 0)
+    #expect(evaluatedFixture.metrics.missingExpectedTurnCount == 2)
+    #expect(evaluatedFixture.notes.contains { $0.contains("failed before producing a transcript") })
+    #expect(evaluatedFixture.notes.contains { $0.contains("missing.m4a") })
+}
+
 private func fixtureRoot() -> URL {
     Bundle.module.resourceURL!
 }

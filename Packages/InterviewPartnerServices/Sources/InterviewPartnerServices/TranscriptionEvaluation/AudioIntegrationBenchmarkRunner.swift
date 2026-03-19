@@ -9,8 +9,24 @@ public enum AudioIntegrationBenchmarkRunner {
         fixturesRoot: URL,
         variant: ReplayBenchmarkVariant
     ) async throws -> TranscriptionBenchmarkReport {
-        let fixtureReports = try await fixtures.asyncMap { fixture in
-            try await evaluateFixture(fixture, fixturesRoot: fixturesRoot, variant: variant)
+        var fixtureReports: [FixtureBenchmarkReport] = []
+        fixtureReports.reserveCapacity(fixtures.count)
+        for fixture in fixtures {
+            do {
+                let report = try await evaluateFixture(
+                    fixture,
+                    fixturesRoot: fixturesRoot,
+                    variant: variant
+                )
+                fixtureReports.append(report)
+            } catch {
+                fixtureReports.append(
+                    failedFixtureReport(
+                        fixture: fixture,
+                        error: error
+                    )
+                )
+            }
         }
 
         return TranscriptionBenchmarkReport(
@@ -44,6 +60,7 @@ public enum AudioIntegrationBenchmarkRunner {
         let offlineReconciler = OfflineDiarizationReconciler(tuning: variant.tuning)
         let state = AudioIntegrationBenchmarkState(tuning: variant.tuning, useVadBoundaries: variant.useVadBoundaries)
         let callbackTracker = AudioTapWorkTracker()
+        var diagnosticNotes: [String] = []
 
         let modelDirectory = defaultModelsDirectory(for: .ms160)
         try await downloadModelsIfNeeded(to: modelDirectory, chunkSize: .ms160)
@@ -88,24 +105,41 @@ public enum AudioIntegrationBenchmarkRunner {
             let elapsedSeconds = Double(processedFrames) / format.sampleRate
             await state.updateAudioDuration(elapsedSeconds)
 
-            try await processAsrBuffer(buffer, with: asrManager)
-            try await processDiarizationBuffer(buffer, with: diarizationEngine)
+            do {
+                try await processAsrBuffer(buffer, with: asrManager)
+                try await processDiarizationBuffer(buffer, with: diarizationEngine)
 
-            if variant.useVadBoundaries {
-                let events = try await processVadBuffer(buffer, with: vadEngine)
-                for event in events {
-                    await state.ingestVadEvent(event)
+                if variant.useVadBoundaries {
+                    let events = try await processVadBuffer(buffer, with: vadEngine)
+                    for event in events {
+                        await state.ingestVadEvent(event)
+                    }
                 }
+            } catch {
+                diagnosticNotes.append(
+                    "Stream processing failed at \(String(format: "%.2f", elapsedSeconds))s: \(describe(error))"
+                )
+                break
             }
         }
 
-        let finalTranscript = try await asrManager.finish()
-        let liveSnapshot = await diarizationEngine.currentSnapshot()
-        await state.handleEou(
-            transcript: finalTranscript,
-            diarizationSegments: liveSnapshot.segments,
-            audioDurationSeconds: await state.audioDurationSeconds()
-        )
+        await callbackTracker.waitUntilIdle()
+        let finalTranscript: String
+        do {
+            finalTranscript = try await asrManager.finish()
+        } catch {
+            diagnosticNotes.append("ASR finish failed: \(describe(error))")
+            finalTranscript = ""
+        }
+
+        if !finalTranscript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let liveSnapshot = await diarizationEngine.currentSnapshot()
+            await state.handleEou(
+                transcript: finalTranscript,
+                diarizationSegments: liveSnapshot.segments,
+                audioDurationSeconds: await state.audioDurationSeconds()
+            )
+        }
         await callbackTracker.waitUntilIdle()
 
         let liveTurns = await state.recordedLiveTurns()
@@ -144,7 +178,8 @@ public enum AudioIntegrationBenchmarkRunner {
             finalizedTurns: finalizedTurns,
             offlineRuntimeRTF: offlineRuntimeRTF,
             missingSpeechEndCount: await state.recordedMissingSpeechEndCount(),
-            gapNotes: await state.recordedGapNotes()
+            gapNotes: await state.recordedGapNotes(),
+            diagnosticNotes: diagnosticNotes
         )
     }
 
@@ -154,7 +189,8 @@ public enum AudioIntegrationBenchmarkRunner {
         finalizedTurns: [TranscriptTurn],
         offlineRuntimeRTF: Double,
         missingSpeechEndCount: Int,
-        gapNotes: [String]
+        gapNotes: [String],
+        diagnosticNotes: [String]
     ) -> FixtureBenchmarkReport {
         let metrics = FixtureBenchmarkMetrics(
             expectedTurnCount: fixture.expectedTurns.count,
@@ -239,7 +275,7 @@ public enum AudioIntegrationBenchmarkRunner {
             missingSpeechEndCount: missingSpeechEndCount
         )
 
-        var notes = gapNotes
+        var notes = gapNotes + diagnosticNotes
         notes.append("Audio-driven integration benchmark.")
         if metrics.splitMergeErrorCount > 0 {
             notes.append("Turn split/merge mismatch detected.")
@@ -274,6 +310,55 @@ public enum AudioIntegrationBenchmarkRunner {
             metrics: metrics,
             notes: notes
         )
+    }
+
+    private static func failedFixtureReport(
+        fixture: ReplayFixture,
+        error: Error
+    ) -> FixtureBenchmarkReport {
+        let expectedSpeakerCount = SpeakerMetrics.expectedSpeakerCount(expected: fixture.expectedTurns)
+        let expectedDuration = fixture.expectedTurns.last?.endSeconds ?? 0
+
+        return FixtureBenchmarkReport(
+            fixtureID: fixture.fixtureID,
+            description: fixture.description,
+            metrics: FixtureBenchmarkMetrics(
+                expectedTurnCount: fixture.expectedTurns.count,
+                actualLiveTurnCount: 0,
+                actualFinalTurnCount: 0,
+                turnBoundaryMAEMs: expectedDuration * 1_000,
+                lateFinalizationP95Ms: expectedDuration * 1_000,
+                splitMergeErrorCount: fixture.expectedTurns.count,
+                expectedTurnRecall: 0,
+                actualTurnPrecision: 0,
+                missingExpectedTurnCount: fixture.expectedTurns.count,
+                extraActualTurnCount: 0,
+                sessionCoverageRatio: 0,
+                liveSpeakerAccuracy: 0,
+                finalSpeakerAccuracy: 0,
+                expectedSpeakerCount: expectedSpeakerCount,
+                actualLiveSpeakerCount: 0,
+                actualFinalSpeakerCount: 0,
+                liveSpeakerCoverageRecall: 0,
+                finalSpeakerCoverageRecall: 0,
+                liveSpeakerCountError: expectedSpeakerCount,
+                finalSpeakerCountError: expectedSpeakerCount,
+                unclearRate: 1,
+                offlineRuntimeRTF: 0,
+                missingSpeechEndCount: fixture.expectedTurns.count
+            ),
+            notes: [
+                "Audio-driven integration benchmark failed before producing a transcript.",
+                "Runner error: \(describe(error))"
+            ]
+        )
+    }
+
+    private static func describe(_ error: Error) -> String {
+        if let localized = error as? LocalizedError, let description = localized.errorDescription {
+            return description
+        }
+        return String(describing: error)
     }
 
     private static func defaultModelsDirectory(for chunkSize: StreamingChunkSize) -> URL {
