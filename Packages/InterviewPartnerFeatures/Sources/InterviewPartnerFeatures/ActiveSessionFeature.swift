@@ -1,5 +1,6 @@
 import Combine
 import Observation
+import OSLog
 import SwiftUI
 import InterviewPartnerDomain
 import InterviewPartnerServices
@@ -15,6 +16,11 @@ final class SessionCoordinator: Identifiable {
     private let workspaceExporter: any WorkspaceExporter
     @ObservationIgnored
     private let transcriptionService: any TranscriptionService
+    @ObservationIgnored
+    private let logger = Logger(
+        subsystem: "com.mistercheese.InterviewPartner",
+        category: "SessionCoordinator"
+    )
 
     private var timerCancellable: AnyCancellable?
     private var didStart = false
@@ -34,6 +40,7 @@ final class SessionCoordinator: Identifiable {
     var limitedModeMessage: String?
     var diarizationSnapshot: DiarizationSnapshot?
     var errorMessage: String?
+    var nonBlockingErrorMessage: String?
     var isEnding = false
     var didFinishSession = false
     var skipUndoState: SkipUndoState?
@@ -160,12 +167,10 @@ final class SessionCoordinator: Identifiable {
 
         let note = AdHocNote(text: trimmed, timestamp: .now)
         adHocNotes.append(note)
-
-        do {
+        persistIncrementalWrite(
+            operation: "append ad hoc note"
+        ) {
             try sessionRepository.appendAdHocNote(note, to: id)
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 
@@ -205,11 +210,11 @@ final class SessionCoordinator: Identifiable {
 
     private func startTimer() {
         timerCancellable?.cancel()
+        refreshElapsedTime()
         timerCancellable = Timer.publish(every: 1, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
-                guard let self else { return }
-                elapsedSeconds = max(Int(Date.now.timeIntervalSince(startedAt)), 0)
+                self?.refreshElapsedTime()
             }
     }
 
@@ -220,20 +225,18 @@ final class SessionCoordinator: Identifiable {
 
         case .finalizedTurn(let turn):
             transcript.append(turn)
-            do {
+            persistIncrementalWrite(
+                operation: "append transcript turn"
+            ) {
                 try sessionRepository.appendTranscriptTurn(turn, to: id)
-                errorMessage = nil
-            } catch {
-                errorMessage = error.localizedDescription
             }
 
         case .transcriptGap(let gap):
             gaps.append(gap)
-            do {
+            persistIncrementalWrite(
+                operation: "append transcript gap"
+            ) {
                 try sessionRepository.appendTranscriptGap(gap, to: id)
-                errorMessage = nil
-            } catch {
-                errorMessage = error.localizedDescription
             }
 
         case .diarizationSnapshot(let snapshot):
@@ -263,11 +266,10 @@ final class SessionCoordinator: Identifiable {
             questionStatuses.append(newStatus)
         }
 
-        do {
+        persistIncrementalWrite(
+            operation: "update question status"
+        ) {
             try sessionRepository.upsertQuestionStatus(newStatus, for: id)
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 
@@ -290,6 +292,29 @@ final class SessionCoordinator: Identifiable {
         questionStatuses = record.questionStatuses
         adHocNotes = record.adHocNotes
         endedAt = record.endedAt
+    }
+
+    private func refreshElapsedTime() {
+        elapsedSeconds = max(Int(Date.now.timeIntervalSince(startedAt)), 0)
+    }
+
+    private func persistIncrementalWrite(
+        operation: String,
+        _ write: () throws -> Void
+    ) {
+        do {
+            try write()
+            nonBlockingErrorMessage = nil
+        } catch {
+            handleIncrementalWriteFailure(error, operation: operation)
+        }
+    }
+
+    private func handleIncrementalWriteFailure(_ error: Error, operation: String) {
+        logger.error(
+            "Non-fatal session persistence failure during \(operation, privacy: .public) for session \(self.id.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)"
+        )
+        nonBlockingErrorMessage = "The latest session change could not be saved locally. Capture will continue, but review the session before relying on the export."
     }
 }
 
@@ -325,6 +350,12 @@ struct ActiveSessionView: View {
 
                 if let limitedModeMessage = coordinator.limitedModeMessage {
                     LimitedModeBanner(message: limitedModeMessage)
+                        .padding(.horizontal)
+                        .padding(.bottom, 8)
+                }
+
+                if let nonBlockingErrorMessage = coordinator.nonBlockingErrorMessage {
+                    NonBlockingErrorBanner(message: nonBlockingErrorMessage)
                         .padding(.horizontal)
                         .padding(.bottom, 8)
                 }
@@ -533,8 +564,14 @@ private struct TranscriptView: View {
     }
 
     private var transcriptItems: [TranscriptItem] {
-        let turnItems = transcript.map(TranscriptItem.turn)
-        let gapItems = gaps.map(TranscriptItem.gap)
+        let visibleTurns = Array(transcript.suffix(50))
+        let earliestVisibleDate = visibleTurns.first?.timestamp
+        let visibleGaps = gaps.filter { gap in
+            guard let earliestVisibleDate else { return true }
+            return gap.endTimestamp >= earliestVisibleDate || gap.startTimestamp >= earliestVisibleDate
+        }
+        let turnItems = visibleTurns.map(TranscriptItem.turn)
+        let gapItems = visibleGaps.map(TranscriptItem.gap)
         return (turnItems + gapItems).sorted { lhs, rhs in
             lhs.sortDate < rhs.sortDate
         }
@@ -714,14 +751,14 @@ private struct ScriptPanelView: View {
                     showNoteComposer = true
                 } label: {
                     Image(systemName: "plus")
-                        .frame(width: 36, height: 36)
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.bordered)
                 .accessibilityLabel("Add ad hoc note")
 
                 Button(action: onPanicTap) {
                     Image(systemName: "rectangle.grid.1x2")
-                        .frame(width: 36, height: 36)
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.bordered)
                 .accessibilityLabel("Show all questions")
@@ -802,6 +839,7 @@ private struct ScriptQuestionRow: View {
             .background(statusBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
+        .frame(minHeight: 44)
         .onLongPressGesture(perform: onLongPress)
     }
 
@@ -944,6 +982,22 @@ private struct LimitedModeBanner: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text(message)
+                .font(.callout)
+            Spacer(minLength: 0)
+        }
+        .padding()
+        .background(Color.orange.opacity(0.14), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+private struct NonBlockingErrorBanner: View {
+    let message: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "externaldrive.badge.exclamationmark")
                 .foregroundStyle(.orange)
             Text(message)
                 .font(.callout)

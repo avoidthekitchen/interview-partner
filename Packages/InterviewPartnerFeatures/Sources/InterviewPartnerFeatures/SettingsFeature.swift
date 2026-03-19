@@ -13,6 +13,7 @@ final class SettingsCoordinator {
     var workspaceStatus: WorkspaceStatus
     var errorMessage: String?
     var isShowingFolderPicker = false
+    var isShowingPrivacyDisclosure = false
 
     init(workspaceExporter: any WorkspaceExporter) {
         self.workspaceExporter = workspaceExporter
@@ -34,6 +35,10 @@ final class SettingsCoordinator {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func presentPrivacyDisclosure() {
+        isShowingPrivacyDisclosure = true
     }
 }
 
@@ -104,6 +109,20 @@ private struct WorkspaceSettingsContent: View {
 
     var body: some View {
         List {
+            Section("Privacy") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Audio is processed on your device and never uploaded without your permission.")
+                        .font(.body)
+                    Text("Review the disclosure again at any time from Settings.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button("Review Privacy Disclosure") {
+                    coordinator.presentPrivacyDisclosure()
+                }
+            }
+
             Section {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(title)
@@ -160,6 +179,15 @@ private struct WorkspaceSettingsContent: View {
                 coordinator.saveSelectedFolder(url)
                 onWorkspaceUpdated()
             }
+        }
+        .sheet(isPresented: $coordinator.isShowingPrivacyDisclosure) {
+            PrivacyDisclosureSheet(
+                title: "Privacy Disclosure",
+                dismissLabel: "Done",
+                onDismiss: {
+                    coordinator.isShowingPrivacyDisclosure = false
+                }
+            )
         }
         .alert(
             "Workspace Error",
