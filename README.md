@@ -16,7 +16,7 @@ There are a thousand user interview apps, but this one is mine. This app is inte
 
 ## Current Status
 
-The repository currently ships **Sprint 3 - Session Review + Export**.
+The repository currently ships **Sprint 4 - Polish for First Real Use**.
 
 - Guide management is available in-app, with SwiftData-backed persistence and workspace import/export plumbing
 - Session setup, active interview capture, live transcript display, question tracking, ad hoc notes, and session history are implemented
@@ -24,6 +24,9 @@ The repository currently ships **Sprint 3 - Session Review + Export**.
 - Finalized transcript turns, gaps, question statuses, and notes are persisted incrementally through SwiftData during the session
 - Completed sessions now open into a dedicated review flow with transcript edits, session-wide speaker relabeling, coverage review, markdown preview, and share-sheet export
 - Session export writes `.md` and `.json` files to temporary storage immediately and retries workspace exports through a lightweight pending-export queue when bookmark access is unavailable
+- First launch now presents a privacy disclosure, and the same disclosure can be reopened later from Settings
+- Session setup now includes minimal microphone-denied recovery with an inline explanation and an `Open Settings` shortcut
+- Active sessions surface non-blocking local persistence failures, keep the panic button in the session header, and render only the most recent live transcript window for performance while preserving the full stored transcript
 - Speaker labeling is still heuristic and not production-grade yet, but review/export now treats the reconciled post-session transcript as the durable source of truth
 
 ## AI Assistant Rules Files
@@ -106,7 +109,8 @@ Most development happens under `Packages/`:
 ### Running the App
 - Open `InterviewPartner.xcworkspace` in Xcode
 - Run the `InterviewPartner` scheme
-- The first run will request microphone access
+- The first launch will show a privacy disclosure before entering the main app
+- The first session start will request microphone access
 - Create or import a workspace in Settings if needed, then create a guide in the Guides tab
 - Start a session from the Sessions tab, choose a guide, and optionally set a participant label
 - End the session to queue export, then open it from session history to review transcript edits, rename speakers, preview markdown, and share the generated files
@@ -114,7 +118,7 @@ Most development happens under `Packages/`:
 - If diarization or FluidAudio startup fails, the app can fall back to Speech-based transcription with reduced capability
 - Pause briefly between sentences so the end-of-utterance detector can finalize a turn
 
-### What Sprint 3 Proves Today
+### What Sprint 4 Proves Today
 - Sessions can be created from a persisted guide and returned to history when finalized
 - Live partial transcript updates and finalized utterance turns flow into the active-session UI
 - Question coverage can be tracked in-session, including tap-to-cycle status changes and skip interactions
@@ -122,6 +126,8 @@ Most development happens under `Packages/`:
 - Finalized turns are stored with speaker label, timing metadata, and attribution confidence, then exposed in a post-session review screen for edits
 - Session history shows pending export state and retries failed workspace writes when the app returns to the foreground
 - Markdown and JSON exports can be previewed and shared from the review screen, with workspace writes mirrored into `InterviewPartner/sessions/...`
+- First-launch privacy messaging and later Settings access are both in place
+- Mic-denied recovery, non-blocking local persistence failure messaging, and transcript windowing are implemented as part of the first-real-use polish pass
 - Speaker labeling still needs refinement, but the reconciled review transcript is now the source of truth for shared artifacts
 
 ### Public API Requirements
