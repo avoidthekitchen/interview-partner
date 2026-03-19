@@ -126,7 +126,7 @@ Create deterministic evaluation infrastructure before changing the live pipeline
 
 #### Manual Verification
 - [ ] Fixture report is readable enough to answer “did EOU improve?” and “did speaker labeling improve?” without inspecting raw logs.
-- [ ] Fixture set includes at least one case for each known failure mode from the research memo.
+- [ ] Fixture set includes at least one case for each known failure mode from the research memo 2026-03-19-13-04_research_mobile_transcription_eou_diarization.md.
 
 ---
 
