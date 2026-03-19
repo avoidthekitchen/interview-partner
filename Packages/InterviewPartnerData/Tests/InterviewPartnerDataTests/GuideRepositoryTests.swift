@@ -41,8 +41,21 @@ private final class MockWorkspaceExporter: WorkspaceExporter {
         return status.resolvedBaseURL.appendingPathComponent("\(guide.name).json")
     }
 
-    func exportSessionBundle(_ bundle: SessionExportBundle) throws -> [URL] {
-        []
+    func generateTranscriptMarkdown(session: SessionRecord) -> String {
+        ""
+    }
+
+    func generateSessionJSON(session: SessionRecord) throws -> Data {
+        Data()
+    }
+
+    func exportSessionBundle(_ bundle: SessionExportBundle) throws -> SessionExportResult {
+        SessionExportResult(
+            temporaryFileURLs: [],
+            workspaceFileURLs: [],
+            workspaceWriteSucceeded: true,
+            workspaceErrorDescription: nil
+        )
     }
 }
 

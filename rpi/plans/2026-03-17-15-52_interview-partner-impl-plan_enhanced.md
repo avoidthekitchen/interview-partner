@@ -262,7 +262,7 @@ Sprint 0 proved the audio pipeline works. Now build the structure everything els
 - [x] **Incremental persistence:** each `TranscriptTurn`, `TranscriptGap`, `QuestionStatus` change, and `AdHocNote` written immediately via `SessionRepository` — not batched at session end
 - [x] `Timer.publish` for elapsed time (pauses on app background)
 - [x] Persist live speaker labels as **provisional** during the active session; ambiguous turns remain `Unclear` instead of forcing a confident label
-- [ ] `endSession()`: stops transcription, finalizes the full diarization timeline, runs a post-pass reconciliation over transcript turns before export/persistence becomes durable, finalizes `Session` via `SessionRepository`, creates `ExportQueueEntry`, triggers immediate export attempt
+- [x] `endSession()`: stops transcription, finalizes the full diarization timeline, runs a post-pass reconciliation over transcript turns before export/persistence becomes durable, finalizes `Session` via `SessionRepository`, creates `ExportQueueEntry`, triggers immediate export attempt
 
 > **Sprint 2 scope note (March 18, 2026):** `endSession()` now stops transcription, reconciles speaker labels, and finalizes the `Session` locally. Per user clarification, `ExportQueueEntry` creation and immediate export attempts remain deferred to Sprint 3.
 
@@ -296,30 +296,32 @@ Sprint 0 proved the audio pipeline works. Now build the structure everything els
 **Days 14–19 · Goal: Produce a shareable artifact from a completed session**
 
 **SessionReviewView** (driven by `@Observable ReviewCoordinator`)
-- [ ] Three-tab or segmented view: Transcript / Coverage / Export
-- [ ] Transcript tab: editable turns (tap text to edit via `ReviewCoordinator`, committed back to `SessionRepository`); tap speaker label to rename (renames all turns with that label in this session); gap markers shown read-only
-- [ ] Review UI loads reconciled speaker labels as the default/session-truth transcript; provisional live attribution is optional diagnostic metadata, not the primary editing surface
-- [ ] Coverage tab: read-only question list with final statuses, grouped by priority; ad hoc notes section below
-- [ ] Export tab: preview of `transcript.md` content, share sheet trigger
+- [x] Three-tab or segmented view: Transcript / Coverage / Export
+- [x] Transcript tab: editable turns (tap text to edit via `ReviewCoordinator`, committed back to `SessionRepository`); tap speaker label to rename (renames all turns with that label in this session); gap markers shown read-only
+- [x] Review UI loads reconciled speaker labels as the default/session-truth transcript; provisional live attribution is optional diagnostic metadata, not the primary editing surface
+- [x] Coverage tab: read-only question list with final statuses, grouped by priority; ad hoc notes section below
+- [x] Export tab: preview of `transcript.md` content, share sheet trigger
 
 **Export** (in `WorkspaceExporter`)
-- [ ] `generateTranscriptMarkdown(session:)`: header with participant label + date, turns as `[HH:MM] Speaker A: text`, gap markers as `[transcription unavailable HH:MM–HH:MM]`, ad hoc notes section, coverage summary
-- [ ] Export uses reconciled/final speaker labels rather than raw provisional live labels; ambiguous reconciliations remain visibly `Unclear`
-- [ ] `generateSessionJSON(session:)`: full session as Codable JSON with `branch: null` and `ai_scoring_prompt_override: null` stubs
-- [ ] Session JSON clearly distinguishes durable/reconciled speaker labels from any optional provisional attribution metadata if both are retained
-- [ ] Always write to `NSTemporaryDirectory()` at session end (share sheet source)
-- [ ] Write to `InterviewPartner/sessions/[YYYY-MM-DD]-[session-id]/` via security-scoped bookmark; on success delete `ExportQueueEntry`
-- [ ] On workspace failure: leave `ExportQueueEntry` in SwiftData; retry on app foreground and workspace reconnect
-- [ ] Share sheet: standard `UIActivityViewController` with `.md` and `.json`
+- [x] `generateTranscriptMarkdown(session:)`: header with participant label + date, turns as `[HH:MM] Speaker A: text`, gap markers as `[transcription unavailable HH:MM–HH:MM]`, ad hoc notes section, coverage summary
+- [x] Export uses reconciled/final speaker labels rather than raw provisional live labels; ambiguous reconciliations remain visibly `Unclear`
+- [x] `generateSessionJSON(session:)`: full session as Codable JSON with `branch: null` and `ai_scoring_prompt_override: null` stubs
+- [x] Session JSON clearly distinguishes durable/reconciled speaker labels from any optional provisional attribution metadata if both are retained
+- [x] Always write to `NSTemporaryDirectory()` at session end (share sheet source)
+- [x] Write to `InterviewPartner/sessions/[YYYY-MM-DD]-[session-id]/` via security-scoped bookmark; on success delete `ExportQueueEntry`
+- [x] On workspace failure: leave `ExportQueueEntry` in SwiftData; retry on app foreground and workspace reconnect
+- [x] Share sheet: standard `UIActivityViewController` with `.md` and `.json`
 
 **Export queue drain**
-- [ ] On app foreground (`scenePhase == .active`): scan for pending `ExportQueueEntry` records, attempt workspace write for each
-- [ ] On bookmark resolution failure: show persistent warning banner in `SessionListView` listing count of pending exports
+- [x] On app foreground (`scenePhase == .active`): scan for pending `ExportQueueEntry` records, attempt workspace write for each
+- [x] On bookmark resolution failure: show persistent warning banner in `SessionListView` listing count of pending exports
 
 **Session history**
-- [ ] `SessionListView` populated from `SessionRepository` query, sorted by `startedAt` descending
-- [ ] Session row: participant label, guide name, date, duration, Must Cover coverage count; pending-export badge if `ExportQueueEntry` exists for session
-- [ ] Tap → `SessionReviewView`
+- [x] `SessionListView` populated from `SessionRepository` query, sorted by `startedAt` descending
+- [x] Session row: participant label, guide name, date, duration, Must Cover coverage count; pending-export badge if `ExportQueueEntry` exists for session
+- [x] Tap → `SessionReviewView`
+
+> **Verification note (March 18, 2026):** `xcodebuildmcp swift-package test --package-path /Users/mistercheese/.codex/worktrees/379e/interview-partner/Packages/InterviewPartnerDomain`, `xcodebuildmcp swift-package test --package-path /Users/mistercheese/.codex/worktrees/379e/interview-partner/Packages/InterviewPartnerData`, `xcodebuildmcp simulator build --workspace-path /Users/mistercheese/.codex/worktrees/379e/interview-partner/InterviewPartner.xcworkspace --scheme InterviewPartner --simulator-name "iPhone 15" --derived-data-path /Users/mistercheese/.codex/worktrees/379e/interview-partner/.build/xcodebuildmcp-derived`, and `xcodebuildmcp simulator build-and-run --workspace-path /Users/mistercheese/.codex/worktrees/379e/interview-partner/InterviewPartner.xcworkspace --scheme InterviewPartner --simulator-name "iPhone 15" --derived-data-path /Users/mistercheese/.codex/worktrees/379e/interview-partner/.build/xcodebuildmcp-derived` all succeeded on March 18, 2026. Workspace-local `.xcodebuildmcp` defaults were not present, so these verifications were run with explicit command arguments.
 
 > **Exit criterion:** End a session. Open the review. Fix one speaker label — verify all turns for that speaker update. Export to Markdown. Confirm gap markers appear correctly if transcription was interrupted. Share to Files or Notes. Kill the app before the export completes; relaunch; confirm the pending-export badge appears and the export retries successfully.
 

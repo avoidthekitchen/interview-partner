@@ -1,10 +1,15 @@
 import Foundation
+import OSLog
 import SwiftData
 import InterviewPartnerDomain
 
 @MainActor
 public final class SwiftDataSessionRepository: SessionRepository {
     private let modelContainer: ModelContainer
+    private let logger = Logger(
+        subsystem: "com.mistercheese.InterviewPartner",
+        category: "SessionRepository"
+    )
 
     public init(modelContainer: ModelContainer) {
         self.modelContainer = modelContainer
@@ -40,6 +45,16 @@ public final class SwiftDataSessionRepository: SessionRepository {
 
     public func fetchSession(id: UUID) throws -> SessionRecord? {
         try fetchSessionModel(id: id).map(Self.record(from:))
+    }
+
+    public func fetchPendingExportSessions() throws -> [SessionRecord] {
+        let descriptor = FetchDescriptor<Session>(
+            sortBy: [SortDescriptor(\Session.startedAt, order: .reverse)]
+        )
+
+        return try modelContainer.mainContext.fetch(descriptor)
+            .filter { !$0.exportQueueEntries.isEmpty }
+            .map(Self.record(from:))
     }
 
     @discardableResult
@@ -131,6 +146,58 @@ public final class SwiftDataSessionRepository: SessionRepository {
         try modelContainer.mainContext.save()
     }
 
+    public func updateTranscriptTurn(
+        _ turn: InterviewPartnerDomain.TranscriptTurn,
+        in sessionID: UUID
+    ) throws -> SessionRecord {
+        let session = try requireSession(id: sessionID)
+        guard let existing = session.transcriptTurns.first(where: { $0.id == turn.id }) else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+
+        existing.speakerLabel = turn.speakerLabel
+        existing.text = turn.text
+        existing.timestamp = turn.timestamp
+        existing.isFinal = turn.isFinal
+        existing.startTimeSeconds = turn.startTimeSeconds
+        existing.endTimeSeconds = turn.endTimeSeconds
+        existing.speakerMatchConfidence = turn.speakerMatchConfidence
+        existing.speakerLabelIsProvisional = turn.speakerLabelIsProvisional
+
+        try modelContainer.mainContext.save()
+        logger.info(
+            "Updated transcript turn \(turn.id.uuidString, privacy: .public) in session \(sessionID.uuidString, privacy: .public)"
+        )
+        return Self.record(from: session)
+    }
+
+    public func renameSpeakerLabel(
+        in sessionID: UUID,
+        from originalLabel: String,
+        to newLabel: String
+    ) throws -> SessionRecord {
+        let session = try requireSession(id: sessionID)
+        let trimmedLabel = newLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedLabel.isEmpty else {
+            throw NSError(
+                domain: "InterviewPartnerData.SessionRepository",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Speaker names cannot be empty."]
+            )
+        }
+
+        for turn in session.transcriptTurns where turn.speakerLabel == originalLabel {
+            turn.speakerLabel = trimmedLabel
+            turn.speakerLabelIsProvisional = false
+        }
+
+        try modelContainer.mainContext.save()
+        logger.info(
+            "Renamed speaker label in session \(sessionID.uuidString, privacy: .public) from \(originalLabel, privacy: .public) to \(trimmedLabel, privacy: .public)"
+        )
+        return Self.record(from: session)
+    }
+
     public func finalizeSession(
         id: UUID,
         endedAt: Date,
@@ -152,7 +219,46 @@ public final class SwiftDataSessionRepository: SessionRepository {
             existing.speakerLabelIsProvisional = turn.speakerLabelIsProvisional
         }
 
+        if session.exportQueueEntries.isEmpty {
+            let queueEntry = ExportQueueEntry(
+                sessionID: id,
+                queuedAt: .now,
+                attemptCount: 0,
+                lastAttemptAt: nil,
+                session: session
+            )
+            modelContainer.mainContext.insert(queueEntry)
+            session.exportQueueEntries.append(queueEntry)
+            logger.info(
+                "Created export queue entry \(queueEntry.id.uuidString, privacy: .public) for session \(id.uuidString, privacy: .public)"
+            )
+        }
+
         try modelContainer.mainContext.save()
+        return Self.record(from: session)
+    }
+
+    public func recordExportAttempt(for sessionID: UUID, at attemptedAt: Date) throws {
+        let session = try requireSession(id: sessionID)
+        guard let queueEntry = session.exportQueueEntries.first else { return }
+        queueEntry.attemptCount += 1
+        queueEntry.lastAttemptAt = attemptedAt
+        try modelContainer.mainContext.save()
+        logger.info(
+            "Recorded export attempt \(queueEntry.attemptCount, privacy: .public) for session \(sessionID.uuidString, privacy: .public)"
+        )
+    }
+
+    public func markExportCompleted(for sessionID: UUID) throws -> SessionRecord {
+        let session = try requireSession(id: sessionID)
+        for queueEntry in session.exportQueueEntries {
+            modelContainer.mainContext.delete(queueEntry)
+        }
+        session.exportQueueEntries.removeAll()
+        try modelContainer.mainContext.save()
+        logger.info(
+            "Cleared export queue for session \(sessionID.uuidString, privacy: .public)"
+        )
         return Self.record(from: session)
     }
 

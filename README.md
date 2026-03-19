@@ -16,13 +16,15 @@ There are a thousand user interview apps, but this one is mine. This app is inte
 
 ## Current Status
 
-The repository currently ships **Sprint 2 - Active Session Core**.
+The repository currently ships **Sprint 3 - Session Review + Export**.
 
 - Guide management is available in-app, with SwiftData-backed persistence and workspace import/export plumbing
 - Session setup, active interview capture, live transcript display, question tracking, ad hoc notes, and session history are implemented
 - Live transcription is powered by FluidAudio's `StreamingEouAsrManager`, with Sortformer-based diarization for provisional speaker labels and a Speech fallback path when FluidAudio is unavailable
 - Finalized transcript turns, gaps, question statuses, and notes are persisted incrementally through SwiftData during the session
-- Speaker labeling is still heuristic and not production-grade yet, and export generation remains Sprint 3 work
+- Completed sessions now open into a dedicated review flow with transcript edits, session-wide speaker relabeling, coverage review, markdown preview, and share-sheet export
+- Session export writes `.md` and `.json` files to temporary storage immediately and retries workspace exports through a lightweight pending-export queue when bookmark access is unavailable
+- Speaker labeling is still heuristic and not production-grade yet, but review/export now treats the reconciled post-session transcript as the durable source of truth
 
 ## AI Assistant Rules Files
 
@@ -96,8 +98,10 @@ Most development happens under `Packages/`:
 - `Packages/InterviewPartnerFeatures/Sources/InterviewPartnerFeatures/InterviewPartnerRootView.swift` wires the main tab UI
 - `Packages/InterviewPartnerFeatures/Sources/InterviewPartnerFeatures/SessionListFeature.swift` handles session history and new-session setup
 - `Packages/InterviewPartnerFeatures/Sources/InterviewPartnerFeatures/ActiveSessionFeature.swift` drives the live interview experience
+- `Packages/InterviewPartnerFeatures/Sources/InterviewPartnerFeatures/SessionReviewFeature.swift` owns transcript review, coverage, and export
 - `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/TranscriptionServices.swift` contains the FluidAudio and Speech transcription integration
-- `Packages/InterviewPartnerData/Sources/InterviewPartnerData/SwiftDataSessionRepository.swift` persists incremental session state
+- `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/WorkspaceServices.swift` generates guide/session export artifacts and resolves workspace destinations
+- `Packages/InterviewPartnerData/Sources/InterviewPartnerData/SwiftDataSessionRepository.swift` persists incremental session state and export queue metadata
 
 ### Running the App
 - Open `InterviewPartner.xcworkspace` in Xcode
@@ -105,17 +109,20 @@ Most development happens under `Packages/`:
 - The first run will request microphone access
 - Create or import a workspace in Settings if needed, then create a guide in the Guides tab
 - Start a session from the Sessions tab, choose a guide, and optionally set a participant label
+- End the session to queue export, then open it from session history to review transcript edits, rename speakers, preview markdown, and share the generated files
 - The first transcription start may download or load FluidAudio models into Application Support, so expect a longer startup
 - If diarization or FluidAudio startup fails, the app can fall back to Speech-based transcription with reduced capability
 - Pause briefly between sentences so the end-of-utterance detector can finalize a turn
 
-### What Sprint 2 Proves Today
+### What Sprint 3 Proves Today
 - Sessions can be created from a persisted guide and returned to history when finalized
 - Live partial transcript updates and finalized utterance turns flow into the active-session UI
 - Question coverage can be tracked in-session, including tap-to-cycle status changes and skip interactions
 - Ad hoc notes and transcript gaps are persisted during capture
-- Finalized turns are stored with speaker label, timing metadata, and attribution confidence
-- Speaker labeling still needs refinement, and export generation is intentionally deferred to Sprint 3
+- Finalized turns are stored with speaker label, timing metadata, and attribution confidence, then exposed in a post-session review screen for edits
+- Session history shows pending export state and retries failed workspace writes when the app returns to the foreground
+- Markdown and JSON exports can be previewed and shared from the review screen, with workspace writes mirrored into `InterviewPartner/sessions/...`
+- Speaker labeling still needs refinement, but the reconciled review transcript is now the source of truth for shared artifacts
 
 ### Public API Requirements
 Types exposed to the app target need `public` access:
