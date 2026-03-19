@@ -1,5 +1,6 @@
 import Foundation
 import InterviewPartnerDomain
+import OSLog
 
 @MainActor
 public final class DefaultWorkspaceExporter: WorkspaceExporter {
@@ -9,6 +10,10 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
 
     private let fileManager: FileManager
     private let userDefaults: UserDefaults
+    private let logger = Logger(
+        subsystem: "com.mistercheese.InterviewPartner",
+        category: "WorkspaceExporter"
+    )
 
     public init(
         fileManager: FileManager = .default,
@@ -23,6 +28,9 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
         let iCloudDriveAvailable = fileManager.url(forUbiquityContainerIdentifier: nil) != nil
 
         guard let bookmarkData = userDefaults.data(forKey: Constants.bookmarkKey) else {
+            logger.info(
+                "No workspace bookmark found. Falling back to documents directory."
+            )
             return WorkspaceStatus(
                 storageLocation: .documentsFallback,
                 iCloudDriveAvailable: iCloudDriveAvailable,
@@ -44,6 +52,7 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
             )
 
             if isStale {
+                logger.info("Workspace bookmark was stale. Refreshing bookmark data.")
                 let refreshedBookmark = try resolvedURL.bookmarkData(
                     options: bookmarkCreationOptions,
                     includingResourceValuesForKeys: nil,
@@ -61,6 +70,9 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
                 warningMessage: nil
             )
         } catch {
+            logger.error(
+                "Failed to resolve workspace bookmark: \(error.localizedDescription, privacy: .public)"
+            )
             return WorkspaceStatus(
                 storageLocation: .documentsFallback,
                 iCloudDriveAvailable: iCloudDriveAvailable,
@@ -80,6 +92,9 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
             relativeTo: nil
         )
         userDefaults.set(bookmarkData, forKey: Constants.bookmarkKey)
+        logger.info(
+            "Saved workspace bookmark for folder \(folderURL.lastPathComponent, privacy: .public)"
+        )
         return currentWorkspaceStatus()
     }
 
@@ -95,6 +110,9 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
     }
 
     public func generateTranscriptMarkdown(session: SessionRecord) -> String {
+        logger.debug(
+            "Generating transcript markdown for session \(session.id.uuidString, privacy: .public). Turns: \(session.transcriptTurns.count, privacy: .public), gaps: \(session.transcriptGaps.count, privacy: .public), notes: \(session.adHocNotes.count, privacy: .public)"
+        )
         let transcriptBody = transcriptLines(for: session).joined(separator: "\n")
         let noteLines = session.adHocNotes.map { note in
             "- [\(transcriptTimeFormatter.string(from: note.timestamp))] \(note.text)"
@@ -128,6 +146,9 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
     }
 
     public func generateSessionJSON(session: SessionRecord) throws -> Data {
+        logger.debug(
+            "Generating session JSON for session \(session.id.uuidString, privacy: .public)"
+        )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
@@ -196,6 +217,9 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
 
         try Data(bundle.markdown.utf8).write(to: tempMarkdownURL, options: .atomic)
         try bundle.jsonData.write(to: tempJSONURL, options: .atomic)
+        logger.info(
+            "Wrote temporary export files for session \(bundle.sessionID.uuidString, privacy: .public) to \(tempMarkdownURL.lastPathComponent, privacy: .public) and \(tempJSONURL.lastPathComponent, privacy: .public)"
+        )
 
         do {
             let markdownURL = try write(
@@ -206,6 +230,9 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
                 data: bundle.jsonData,
                 relativePath: "InterviewPartner/sessions/\(folderName)/session.json"
             )
+            logger.info(
+                "Wrote workspace export files for session \(bundle.sessionID.uuidString, privacy: .public) to \(markdownURL.path(percentEncoded: false), privacy: .public) and \(jsonURL.path(percentEncoded: false), privacy: .public)"
+            )
 
             return SessionExportResult(
                 temporaryFileURLs: [tempMarkdownURL, tempJSONURL],
@@ -214,6 +241,9 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
                 workspaceErrorDescription: nil
             )
         } catch {
+            logger.error(
+                "Workspace export write failed for session \(bundle.sessionID.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
             return SessionExportResult(
                 temporaryFileURLs: [tempMarkdownURL, tempJSONURL],
                 workspaceFileURLs: [],
@@ -234,6 +264,9 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
             withIntermediateDirectories: true
         )
         try data.write(to: destinationURL, options: .atomic)
+        logger.debug(
+            "Wrote file at relative path \(relativePath, privacy: .public)"
+        )
         return destinationURL
     }
 
@@ -242,6 +275,9 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
         guard status.storageLocation == .securityScopedBookmark,
               let bookmarkData = userDefaults.data(forKey: Constants.bookmarkKey)
         else {
+            logger.info(
+                "Using non-bookmark workspace destination at \(status.resolvedBaseURL.path(percentEncoded: false), privacy: .public)"
+            )
             return ResolvedWorkspace(baseURL: status.resolvedBaseURL, stopAccessing: {})
         }
 
@@ -250,6 +286,9 @@ public final class DefaultWorkspaceExporter: WorkspaceExporter {
             resolvingBookmarkData: bookmarkData,
             options: bookmarkResolutionOptions,
             bookmarkDataIsStale: &isStale
+        )
+        logger.debug(
+            "Resolved security-scoped workspace at \(folderURL.path(percentEncoded: false), privacy: .public)"
         )
         let isAccessing = folderURL.startAccessingSecurityScopedResource()
         let stopAccessing = {

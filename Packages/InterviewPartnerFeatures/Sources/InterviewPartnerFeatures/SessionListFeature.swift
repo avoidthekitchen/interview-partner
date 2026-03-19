@@ -1,4 +1,5 @@
 import Observation
+import OSLog
 import SwiftUI
 import InterviewPartnerDomain
 import InterviewPartnerServices
@@ -111,6 +112,11 @@ final class SessionListCoordinator {
     private let permissionManager: any PermissionManager
     @ObservationIgnored
     private let makeTranscriptionService: @MainActor () -> any TranscriptionService
+    @ObservationIgnored
+    private let logger = Logger(
+        subsystem: "com.mistercheese.InterviewPartner",
+        category: "SessionListCoordinator"
+    )
 
     var sessions: [SessionSummary] = []
     var workspaceStatus: WorkspaceStatus
@@ -142,8 +148,12 @@ final class SessionListCoordinator {
         do {
             sessions = try sessionRepository.fetchSessions()
             pendingExportCount = sessions.filter(\.hasPendingExport).count
+            logger.info(
+                "Loaded session list. Sessions: \(self.sessions.count, privacy: .public), pending exports: \(self.pendingExportCount, privacy: .public), storage: \(self.workspaceStatus.storageLocation.rawValue, privacy: .public)"
+            )
             errorMessage = nil
         } catch {
+            logger.error("Failed to load session list: \(error.localizedDescription, privacy: .public)")
             errorMessage = error.localizedDescription
         }
     }
@@ -151,6 +161,9 @@ final class SessionListCoordinator {
     func drainPendingExports() {
         do {
             let pendingSessions = try sessionRepository.fetchPendingExportSessions()
+            logger.info(
+                "Draining pending exports. Count: \(pendingSessions.count, privacy: .public)"
+            )
             for pendingSession in pendingSessions {
                 _ = try performSessionExport(
                     session: pendingSession,
@@ -160,6 +173,9 @@ final class SessionListCoordinator {
             }
             load()
         } catch {
+            logger.error(
+                "Pending export drain failed: \(error.localizedDescription, privacy: .public)"
+            )
             errorMessage = error.localizedDescription
         }
     }

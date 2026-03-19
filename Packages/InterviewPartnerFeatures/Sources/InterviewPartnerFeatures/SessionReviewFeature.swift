@@ -1,4 +1,5 @@
 import Observation
+import OSLog
 import SwiftUI
 import UIKit
 import InterviewPartnerDomain
@@ -11,6 +12,11 @@ final class ReviewCoordinator {
     private let sessionRepository: any SessionRepository
     @ObservationIgnored
     private let workspaceExporter: any WorkspaceExporter
+    @ObservationIgnored
+    private let logger = Logger(
+        subsystem: "com.mistercheese.InterviewPartner",
+        category: "ReviewCoordinator"
+    )
 
     let sessionID: UUID
 
@@ -32,13 +38,22 @@ final class ReviewCoordinator {
     func load() {
         do {
             guard let session = try sessionRepository.fetchSession(id: sessionID) else {
+                logger.error(
+                    "Failed to load session \(self.sessionID.uuidString, privacy: .public): session not found"
+                )
                 errorMessage = "That session could not be loaded."
                 return
             }
 
             self.session = session
+            logger.info(
+                "Loaded review for session \(session.id.uuidString, privacy: .public). Turns: \(session.transcriptTurns.count, privacy: .public), gaps: \(session.transcriptGaps.count, privacy: .public), pending export: \(session.hasPendingExport, privacy: .public)"
+            )
             errorMessage = nil
         } catch {
+            logger.error(
+                "Failed to load session \(self.sessionID.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
             errorMessage = error.localizedDescription
         }
     }
@@ -47,6 +62,9 @@ final class ReviewCoordinator {
         guard var session else { return }
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedText.isEmpty else {
+            logger.error(
+                "Rejected empty transcript edit for session \(session.id.uuidString, privacy: .public), turn \(turnID.uuidString, privacy: .public)"
+            )
             errorMessage = "Transcript text cannot be empty."
             return
         }
@@ -55,6 +73,9 @@ final class ReviewCoordinator {
         session.transcriptTurns[index].text = trimmedText
 
         do {
+            logger.info(
+                "Saving transcript edit for session \(session.id.uuidString, privacy: .public), turn \(turnID.uuidString, privacy: .public)"
+            )
             let updatedSession = try sessionRepository.updateTranscriptTurn(
                 session.transcriptTurns[index],
                 in: session.id
@@ -62,6 +83,9 @@ final class ReviewCoordinator {
             self.session = updatedSession
             errorMessage = nil
         } catch {
+            logger.error(
+                "Failed transcript edit for session \(session.id.uuidString, privacy: .public), turn \(turnID.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
             errorMessage = error.localizedDescription
         }
     }
@@ -70,6 +94,9 @@ final class ReviewCoordinator {
         guard let session else { return }
 
         do {
+            logger.info(
+                "Renaming speaker label in session \(session.id.uuidString, privacy: .public) from \(originalLabel, privacy: .public) to \(newLabel, privacy: .public)"
+            )
             self.session = try sessionRepository.renameSpeakerLabel(
                 in: session.id,
                 from: originalLabel,
@@ -77,6 +104,9 @@ final class ReviewCoordinator {
             )
             errorMessage = nil
         } catch {
+            logger.error(
+                "Failed speaker rename in session \(session.id.uuidString, privacy: .public) from \(originalLabel, privacy: .public) to \(newLabel, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
             errorMessage = error.localizedDescription
         }
     }
@@ -85,6 +115,9 @@ final class ReviewCoordinator {
         guard let session else { return }
 
         do {
+            logger.info(
+                "Starting share/export flow for session \(session.id.uuidString, privacy: .public)"
+            )
             let exportOutcome = try performSessionExport(
                 session: session,
                 sessionRepository: sessionRepository,
@@ -95,8 +128,14 @@ final class ReviewCoordinator {
             exportStatusMessage = exportOutcome.result.workspaceWriteSucceeded
                 ? "Workspace export is up to date."
                 : "Temporary export files are ready. Workspace export is still pending retry."
+            logger.info(
+                "Share/export flow finished for session \(session.id.uuidString, privacy: .public). Workspace success: \(exportOutcome.result.workspaceWriteSucceeded, privacy: .public), temporary URLs: \(self.shareSheetURLs.count, privacy: .public)"
+            )
             errorMessage = nil
         } catch {
+            logger.error(
+                "Share/export flow failed for session \(session.id.uuidString, privacy: .public): \(error.localizedDescription, privacy: .public)"
+            )
             errorMessage = error.localizedDescription
         }
     }

@@ -1,10 +1,15 @@
 import Foundation
+import OSLog
 import SwiftData
 import InterviewPartnerDomain
 
 @MainActor
 public final class SwiftDataSessionRepository: SessionRepository {
     private let modelContainer: ModelContainer
+    private let logger = Logger(
+        subsystem: "com.mistercheese.InterviewPartner",
+        category: "SessionRepository"
+    )
 
     public init(modelContainer: ModelContainer) {
         self.modelContainer = modelContainer
@@ -160,6 +165,9 @@ public final class SwiftDataSessionRepository: SessionRepository {
         existing.speakerLabelIsProvisional = turn.speakerLabelIsProvisional
 
         try modelContainer.mainContext.save()
+        logger.info(
+            "Updated transcript turn \(turn.id.uuidString, privacy: .public) in session \(sessionID.uuidString, privacy: .public)"
+        )
         return Self.record(from: session)
     }
 
@@ -184,6 +192,9 @@ public final class SwiftDataSessionRepository: SessionRepository {
         }
 
         try modelContainer.mainContext.save()
+        logger.info(
+            "Renamed speaker label in session \(sessionID.uuidString, privacy: .public) from \(originalLabel, privacy: .public) to \(trimmedLabel, privacy: .public)"
+        )
         return Self.record(from: session)
     }
 
@@ -218,6 +229,9 @@ public final class SwiftDataSessionRepository: SessionRepository {
             )
             modelContainer.mainContext.insert(queueEntry)
             session.exportQueueEntries.append(queueEntry)
+            logger.info(
+                "Created export queue entry \(queueEntry.id.uuidString, privacy: .public) for session \(id.uuidString, privacy: .public)"
+            )
         }
 
         try modelContainer.mainContext.save()
@@ -230,6 +244,9 @@ public final class SwiftDataSessionRepository: SessionRepository {
         queueEntry.attemptCount += 1
         queueEntry.lastAttemptAt = attemptedAt
         try modelContainer.mainContext.save()
+        logger.info(
+            "Recorded export attempt \(queueEntry.attemptCount, privacy: .public) for session \(sessionID.uuidString, privacy: .public)"
+        )
     }
 
     public func markExportCompleted(for sessionID: UUID) throws -> SessionRecord {
@@ -239,6 +256,9 @@ public final class SwiftDataSessionRepository: SessionRepository {
         }
         session.exportQueueEntries.removeAll()
         try modelContainer.mainContext.save()
+        logger.info(
+            "Cleared export queue for session \(sessionID.uuidString, privacy: .public)"
+        )
         return Self.record(from: session)
     }
 
