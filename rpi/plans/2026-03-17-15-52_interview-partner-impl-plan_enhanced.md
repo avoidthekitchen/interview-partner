@@ -333,31 +333,31 @@ Sprint 0 proved the audio pipeline works. Now build the structure everything els
 **Days 20–25 · Goal: Smooth enough to use in a real interview without embarrassment**
 
 **Permissions & privacy**
-- [ ] Microphone permission: request on first session start, graceful error state if denied (explain in UI, link to Settings)
-- [ ] Privacy disclosure screen at first launch: "Audio is processed on your device and never uploaded without your permission"
+- [ ] Microphone permission: request on first session start; if denied, show a minimal inline explanation in the session setup sheet plus an `Open Settings` action
+- [ ] Privacy disclosure screen at first launch: "Audio is processed on your device and never uploaded without your permission"; disclosure also remains reachable later from Settings
 - [ ] `NSMicrophoneUsageDescription` in `Info.plist`: clear, non-generic description for App Review
 
 **Resilience**
 - [ ] App backgrounded mid-session: audio continues (`UIBackgroundModes: audio`), timer pauses/resumes, UI restores on foreground
-- [ ] FluidAudio init failure: fallback activates silently, banner shown, session continues with `SFSpeechRecognizer`
+- [ ] FluidAudio init failure: fallback activates, banner shown, and session continues with `SFSpeechRecognizer`; if Speech permission has not yet been granted, allow the system prompt at fallback activation
 - [ ] SwiftData write failure: log error, attempt retry once, surface non-blocking error to user
 - [ ] Session ends without iCloud configured: local export always succeeds, warning banner persists
 
 **UX hardening**
 - [ ] Panic button: full-screen question view accessible from session header (not just script panel)
-- [ ] Session timer: optional countdown — user sets target duration in setup sheet, countdown shown in header
-- [ ] Transcript auto-scroll: pauses if user scrolls up manually, resumes on "back to bottom" tap
-- [ ] Long transcripts: cap live view at last 50 turns for performance; full transcript in `SessionReviewView`
+- [ ] Long transcripts: cap the rendered live transcript view at the last 50 turns for performance; persist the full transcript and show the full history in `SessionReviewView`
 
 **Accessibility baseline**
 - [ ] Dynamic Type: all text views support `.body` and above
 - [ ] Minimum tap targets: 44×44pt on all interactive elements (question status tap, ad hoc note button)
 - [ ] VoiceOver labels on icon-only buttons (panic button, ad hoc note `+`)
 
-**TestFlight**
-- [ ] Archive and upload build to App Store Connect
-- [ ] Enable TestFlight internal testing, distribute link to yourself + one other person
-- [ ] Dry-run: conduct a real 30-minute interview using the app, export and share the transcript same day
+> **Sprint 4 scope note (March 19, 2026):** Optional target-duration/countdown work and transcript auto-scroll pause/resume hardening are deferred to a following phase. Sprint 4 keeps the existing count-up timer and default live auto-scroll behavior.
+
+**Real-device validation**
+- [ ] Dry-run: conduct a real 30-minute interview on your own iPhone using the app, then export and share the transcript the same day
+
+> **Sprint 4 distribution note (March 19, 2026):** TestFlight distribution is deferred to a later phase because the current setup uses Xcode Personal Team signing for direct on-device testing only. Revisit App Store Connect setup and TestFlight once a paid Apple Developer Program membership is in place.
 
 > **Exit criterion (for the entire plan):** You run a real 30-minute interview using the app. You export the transcript and share it with a teammate the same day. The teammate can read it and understand what happened — without attending the session.
 
