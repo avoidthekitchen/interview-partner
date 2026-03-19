@@ -338,7 +338,7 @@ Sprint 0 proved the audio pipeline works. Now build the structure everything els
 - [ ] `NSMicrophoneUsageDescription` in `Info.plist`: clear, non-generic description for App Review
 
 **Resilience**
-- [ ] App backgrounded mid-session: audio continues (`UIBackgroundModes: audio`), timer pauses/resumes, UI restores on foreground
+- [ ] App backgrounded mid-session: audio continues (`UIBackgroundModes: audio`), the existing count-up timer continues to reflect wall-clock elapsed session time, and the UI restores correctly on foreground
 - [ ] FluidAudio init failure: fallback activates, banner shown, and session continues with `SFSpeechRecognizer`; if Speech permission has not yet been granted, allow the system prompt at fallback activation
 - [ ] SwiftData write failure: log error, attempt retry once, surface non-blocking error to user
 - [ ] Session ends without iCloud configured: local export always succeeds, warning banner persists
