@@ -25,6 +25,41 @@
         "regression" : false
       },
       {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "expected_turn_recall",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "actual_turn_precision",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "missing_expected_turn_count",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "extra_actual_turn_count",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "session_coverage_ratio",
+        "regression" : false
+      },
+      {
         "baseline" : 0.5,
         "candidate" : 0.5,
         "delta" : 0,
@@ -36,6 +71,34 @@
         "candidate" : 1,
         "delta" : 0,
         "metric" : "final_speaker_accuracy",
+        "regression" : false
+      },
+      {
+        "baseline" : 0.5,
+        "candidate" : 0.5,
+        "delta" : 0,
+        "metric" : "live_speaker_coverage_recall",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "final_speaker_coverage_recall",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "live_speaker_count_error",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "final_speaker_count_error",
         "regression" : false
       },
       {
@@ -86,6 +149,41 @@
         "baseline" : 1,
         "candidate" : 1,
         "delta" : 0,
+        "metric" : "expected_turn_recall",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "actual_turn_precision",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "missing_expected_turn_count",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "extra_actual_turn_count",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "session_coverage_ratio",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
         "metric" : "live_speaker_accuracy",
         "regression" : false
       },
@@ -94,6 +192,34 @@
         "candidate" : 1,
         "delta" : 0,
         "metric" : "final_speaker_accuracy",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "live_speaker_coverage_recall",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "final_speaker_coverage_recall",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "live_speaker_count_error",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "final_speaker_count_error",
         "regression" : false
       },
       {
@@ -144,6 +270,41 @@
         "baseline" : 1,
         "candidate" : 1,
         "delta" : 0,
+        "metric" : "expected_turn_recall",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "actual_turn_precision",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "missing_expected_turn_count",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "extra_actual_turn_count",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "session_coverage_ratio",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
         "metric" : "live_speaker_accuracy",
         "regression" : false
       },
@@ -152,6 +313,34 @@
         "candidate" : 1,
         "delta" : 0,
         "metric" : "final_speaker_accuracy",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "live_speaker_coverage_recall",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "final_speaker_coverage_recall",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "live_speaker_count_error",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "final_speaker_count_error",
         "regression" : false
       },
       {
@@ -164,6 +353,127 @@
       {
         "baseline" : 0.09310344827586207,
         "candidate" : 0.09310344827586207,
+        "delta" : 0,
+        "metric" : "offline_runtime_rtf",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "missing_speech_end_count",
+        "regression" : false
+      }
+    ],
+    "three_speaker_roundtable_long" : [
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "turn_boundary_mae_ms",
+        "regression" : false
+      },
+      {
+        "baseline" : 759.9999999999998,
+        "candidate" : 759.9999999999998,
+        "delta" : 0,
+        "metric" : "late_finalization_p95_ms",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "split_merge_error_count",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "expected_turn_recall",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "actual_turn_precision",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "missing_expected_turn_count",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "extra_actual_turn_count",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "session_coverage_ratio",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "live_speaker_accuracy",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "final_speaker_accuracy",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "live_speaker_coverage_recall",
+        "regression" : false
+      },
+      {
+        "baseline" : 1,
+        "candidate" : 1,
+        "delta" : 0,
+        "metric" : "final_speaker_coverage_recall",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "live_speaker_count_error",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "final_speaker_count_error",
+        "regression" : false
+      },
+      {
+        "baseline" : 0,
+        "candidate" : 0,
+        "delta" : 0,
+        "metric" : "unclear_rate",
+        "regression" : false
+      },
+      {
+        "baseline" : 0.0912863070539419,
+        "candidate" : 0.0912863070539419,
         "delta" : 0,
         "metric" : "offline_runtime_rtf",
         "regression" : false

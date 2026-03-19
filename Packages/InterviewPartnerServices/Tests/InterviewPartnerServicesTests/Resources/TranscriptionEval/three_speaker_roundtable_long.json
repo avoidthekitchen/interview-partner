@@ -1,0 +1,303 @@
+{
+  "fixture_id": "three_speaker_roundtable_long",
+  "fixture_set": "baseline",
+  "description": "A longer three-speaker roundtable should preserve turn recall, full-session coverage, and speaker cardinality instead of collapsing into just a few early turns.",
+  "audio_file_name": null,
+  "frames": [
+    {
+      "elapsed_seconds": 0.10,
+      "cumulative_transcript": "Thanks for joining",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.10, "is_final": false }
+      ],
+      "vad_event": { "kind": "speechStart", "time_seconds": 0.0 },
+      "eou_detected": false
+    },
+    {
+      "elapsed_seconds": 1.29,
+      "cumulative_transcript": "Thanks for joining",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true }
+      ],
+      "vad_event": { "kind": "speechEnd", "time_seconds": 0.55 },
+      "eou_detected": true
+    },
+    {
+      "elapsed_seconds": 1.40,
+      "cumulative_transcript": "Thanks for joining Happy to be here",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 0.92, "is_final": false }
+      ],
+      "vad_event": { "kind": "speechStart", "time_seconds": 0.82 },
+      "eou_detected": false
+    },
+    {
+      "elapsed_seconds": 2.11,
+      "cumulative_transcript": "Thanks for joining Happy to be here",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true }
+      ],
+      "vad_event": { "kind": "speechEnd", "time_seconds": 1.35 },
+      "eou_detected": true
+    },
+    {
+      "elapsed_seconds": 2.25,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 1.82, "is_final": false }
+      ],
+      "vad_event": { "kind": "speechStart", "time_seconds": 1.72 },
+      "eou_detected": false
+    },
+    {
+      "elapsed_seconds": 3.10,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true }
+      ],
+      "vad_event": { "kind": "speechEnd", "time_seconds": 2.38 },
+      "eou_detected": true
+    },
+    {
+      "elapsed_seconds": 3.24,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search Search latency doubled",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 2.87, "is_final": false }
+      ],
+      "vad_event": { "kind": "speechStart", "time_seconds": 2.75 },
+      "eou_detected": false
+    },
+    {
+      "elapsed_seconds": 4.18,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search Search latency doubled",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 3.42, "is_final": true }
+      ],
+      "vad_event": { "kind": "speechEnd", "time_seconds": 3.42 },
+      "eou_detected": true
+    },
+    {
+      "elapsed_seconds": 4.31,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search Search latency doubled We saw that too",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 3.42, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 3.78, "end_time_seconds": 3.90, "is_final": false }
+      ],
+      "vad_event": { "kind": "speechStart", "time_seconds": 3.78 },
+      "eou_detected": false
+    },
+    {
+      "elapsed_seconds": 4.97,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search Search latency doubled We saw that too",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 3.42, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 3.78, "end_time_seconds": 4.22, "is_final": true }
+      ],
+      "vad_event": { "kind": "speechEnd", "time_seconds": 4.22 },
+      "eou_detected": true
+    },
+    {
+      "elapsed_seconds": 5.08,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search Search latency doubled We saw that too Support volume spiked",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 3.42, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 3.78, "end_time_seconds": 4.22, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 4.60, "end_time_seconds": 4.70, "is_final": false }
+      ],
+      "vad_event": { "kind": "speechStart", "time_seconds": 4.60 },
+      "eou_detected": false
+    },
+    {
+      "elapsed_seconds": 5.93,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search Search latency doubled We saw that too Support volume spiked",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 3.42, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 3.78, "end_time_seconds": 4.22, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 4.60, "end_time_seconds": 5.18, "is_final": true }
+      ],
+      "vad_event": { "kind": "speechEnd", "time_seconds": 5.18 },
+      "eou_detected": true
+    },
+    {
+      "elapsed_seconds": 6.04,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search Search latency doubled We saw that too Support volume spiked What is the blocker",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 3.42, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 3.78, "end_time_seconds": 4.22, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 4.60, "end_time_seconds": 5.18, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 5.55, "end_time_seconds": 5.66, "is_final": false }
+      ],
+      "vad_event": { "kind": "speechStart", "time_seconds": 5.55 },
+      "eou_detected": false
+    },
+    {
+      "elapsed_seconds": 6.86,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search Search latency doubled We saw that too Support volume spiked What is the blocker",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 3.42, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 3.78, "end_time_seconds": 4.22, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 4.60, "end_time_seconds": 5.18, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 5.55, "end_time_seconds": 6.12, "is_final": true }
+      ],
+      "vad_event": { "kind": "speechEnd", "time_seconds": 6.12 },
+      "eou_detected": true
+    },
+    {
+      "elapsed_seconds": 7.02,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search Search latency doubled We saw that too Support volume spiked What is the blocker Migration churn",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 3.42, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 3.78, "end_time_seconds": 4.22, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 4.60, "end_time_seconds": 5.18, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 5.55, "end_time_seconds": 6.12, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 6.48, "end_time_seconds": 6.58, "is_final": false }
+      ],
+      "vad_event": { "kind": "speechStart", "time_seconds": 6.48 },
+      "eou_detected": false
+    },
+    {
+      "elapsed_seconds": 7.66,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search Search latency doubled We saw that too Support volume spiked What is the blocker Migration churn",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 3.42, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 3.78, "end_time_seconds": 4.22, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 4.60, "end_time_seconds": 5.18, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 5.55, "end_time_seconds": 6.12, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 6.48, "end_time_seconds": 6.96, "is_final": true }
+      ],
+      "vad_event": { "kind": "speechEnd", "time_seconds": 6.96 },
+      "eou_detected": true
+    },
+    {
+      "elapsed_seconds": 8.02,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search Search latency doubled We saw that too Support volume spiked What is the blocker Migration churn Alerts were noisy",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 3.42, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 3.78, "end_time_seconds": 4.22, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 4.60, "end_time_seconds": 5.18, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 5.55, "end_time_seconds": 6.12, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 6.48, "end_time_seconds": 6.96, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 7.34, "end_time_seconds": 7.46, "is_final": false }
+      ],
+      "vad_event": { "kind": "speechStart", "time_seconds": 7.34 },
+      "eou_detected": false
+    },
+    {
+      "elapsed_seconds": 8.59,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search Search latency doubled We saw that too Support volume spiked What is the blocker Migration churn Alerts were noisy",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 3.42, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 3.78, "end_time_seconds": 4.22, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 4.60, "end_time_seconds": 5.18, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 5.55, "end_time_seconds": 6.12, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 6.48, "end_time_seconds": 6.96, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 7.34, "end_time_seconds": 7.86, "is_final": true }
+      ],
+      "vad_event": { "kind": "speechEnd", "time_seconds": 7.86 },
+      "eou_detected": true
+    },
+    {
+      "elapsed_seconds": 8.78,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search Search latency doubled We saw that too Support volume spiked What is the blocker Migration churn Alerts were noisy We need faster triage",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 3.42, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 3.78, "end_time_seconds": 4.22, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 4.60, "end_time_seconds": 5.18, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 5.55, "end_time_seconds": 6.12, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 6.48, "end_time_seconds": 6.96, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 7.34, "end_time_seconds": 7.86, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 8.25, "end_time_seconds": 8.36, "is_final": false }
+      ],
+      "vad_event": { "kind": "speechStart", "time_seconds": 8.25 },
+      "eou_detected": false
+    },
+    {
+      "elapsed_seconds": 9.64,
+      "cumulative_transcript": "Thanks for joining Happy to be here I want better search Search latency doubled We saw that too Support volume spiked What is the blocker Migration churn Alerts were noisy We need faster triage",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 3.42, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 3.78, "end_time_seconds": 4.22, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 4.60, "end_time_seconds": 5.18, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 5.55, "end_time_seconds": 6.12, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 6.48, "end_time_seconds": 6.96, "is_final": true },
+        { "speaker_index": 2, "start_time_seconds": 7.34, "end_time_seconds": 7.86, "is_final": true },
+        { "speaker_index": 0, "start_time_seconds": 8.25, "end_time_seconds": 8.92, "is_final": true }
+      ],
+      "vad_event": { "kind": "speechEnd", "time_seconds": 8.92 },
+      "eou_detected": true
+    }
+  ],
+  "expected_turns": [
+    { "text": "Thanks for joining", "speaker_label": "Speaker A", "start_seconds": 0.0, "end_seconds": 0.55 },
+    { "text": "Happy to be here", "speaker_label": "Speaker B", "start_seconds": 0.82, "end_seconds": 1.35 },
+    { "text": "I want better search", "speaker_label": "Speaker C", "start_seconds": 1.72, "end_seconds": 2.38 },
+    { "text": "Search latency doubled", "speaker_label": "Speaker A", "start_seconds": 2.75, "end_seconds": 3.42 },
+    { "text": "We saw that too", "speaker_label": "Speaker B", "start_seconds": 3.78, "end_seconds": 4.22 },
+    { "text": "Support volume spiked", "speaker_label": "Speaker C", "start_seconds": 4.60, "end_seconds": 5.18 },
+    { "text": "What is the blocker", "speaker_label": "Speaker A", "start_seconds": 5.55, "end_seconds": 6.12 },
+    { "text": "Migration churn", "speaker_label": "Speaker B", "start_seconds": 6.48, "end_seconds": 6.96 },
+    { "text": "Alerts were noisy", "speaker_label": "Speaker C", "start_seconds": 7.34, "end_seconds": 7.86 },
+    { "text": "We need faster triage", "speaker_label": "Speaker A", "start_seconds": 8.25, "end_seconds": 8.92 }
+  ],
+  "offline_diarization_segments": [
+    { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.55, "is_final": true },
+    { "speaker_index": 1, "start_time_seconds": 0.82, "end_time_seconds": 1.35, "is_final": true },
+    { "speaker_index": 2, "start_time_seconds": 1.72, "end_time_seconds": 2.38, "is_final": true },
+    { "speaker_index": 0, "start_time_seconds": 2.75, "end_time_seconds": 3.42, "is_final": true },
+    { "speaker_index": 1, "start_time_seconds": 3.78, "end_time_seconds": 4.22, "is_final": true },
+    { "speaker_index": 2, "start_time_seconds": 4.60, "end_time_seconds": 5.18, "is_final": true },
+    { "speaker_index": 0, "start_time_seconds": 5.55, "end_time_seconds": 6.12, "is_final": true },
+    { "speaker_index": 1, "start_time_seconds": 6.48, "end_time_seconds": 6.96, "is_final": true },
+    { "speaker_index": 2, "start_time_seconds": 7.34, "end_time_seconds": 7.86, "is_final": true },
+    { "speaker_index": 0, "start_time_seconds": 8.25, "end_time_seconds": 8.92, "is_final": true }
+  ],
+  "offline_runtime_seconds": 0.88
+}

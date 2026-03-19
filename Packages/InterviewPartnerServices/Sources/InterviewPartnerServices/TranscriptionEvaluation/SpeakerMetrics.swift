@@ -26,6 +26,36 @@ enum SpeakerMetrics {
         return Double(unclearCount) / Double(actual.count)
     }
 
+    static func expectedSpeakerCount(expected: [ReplayExpectedTurn]) -> Int {
+        Set(expected.map(\.speakerLabel).map(normalize)).count
+    }
+
+    static func distinctSpeakerCount<TurnType>(
+        actual: [TurnType],
+        label: (TurnType) -> String
+    ) -> Int {
+        Set(actual.map(label).map(normalize).filter { $0 != "unclear" }).count
+    }
+
+    static func speakerCoverageRecall<TurnType>(
+        actual: [TurnType],
+        expected: [ReplayExpectedTurn],
+        label: (TurnType) -> String
+    ) -> Double {
+        let expectedLabels = Set(expected.map(\.speakerLabel).map(normalize))
+        guard !expectedLabels.isEmpty else { return 1 }
+        let actualLabels = Set(actual.map(label).map(normalize).filter { $0 != "unclear" })
+        return Double(expectedLabels.intersection(actualLabels).count) / Double(expectedLabels.count)
+    }
+
+    static func speakerCountError<TurnType>(
+        actual: [TurnType],
+        expected: [ReplayExpectedTurn],
+        label: (TurnType) -> String
+    ) -> Int {
+        abs(distinctSpeakerCount(actual: actual, label: label) - expectedSpeakerCount(expected: expected))
+    }
+
     private static func normalize(_ text: String) -> String {
         text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
     }

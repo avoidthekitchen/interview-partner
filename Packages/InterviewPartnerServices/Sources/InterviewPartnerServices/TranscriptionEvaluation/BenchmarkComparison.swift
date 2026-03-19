@@ -76,8 +76,17 @@ public enum BenchmarkComparison {
         "turn_boundary_mae_ms",
         "late_finalization_p95_ms",
         "split_merge_error_count",
+        "expected_turn_recall",
+        "actual_turn_precision",
+        "missing_expected_turn_count",
+        "extra_actual_turn_count",
+        "session_coverage_ratio",
         "live_speaker_accuracy",
         "final_speaker_accuracy",
+        "live_speaker_coverage_recall",
+        "final_speaker_coverage_recall",
+        "live_speaker_count_error",
+        "final_speaker_count_error",
         "unclear_rate",
         "offline_runtime_rtf",
         "missing_speech_end_count",
@@ -85,7 +94,14 @@ public enum BenchmarkComparison {
 
     private static func isRegression(metric: String, delta: Double) -> Bool {
         switch metric {
-        case "live_speaker_accuracy", "final_speaker_accuracy":
+        case
+            "expected_turn_recall",
+            "actual_turn_precision",
+            "session_coverage_ratio",
+            "live_speaker_accuracy",
+            "final_speaker_accuracy",
+            "live_speaker_coverage_recall",
+            "final_speaker_coverage_recall":
             return delta < 0
         default:
             return delta > 0

@@ -3,12 +3,13 @@ import InterviewPartnerServices
 
 @main
 struct InterviewPartnerTranscriptionEvalCLI {
-    static func main() throws {
+    static func main() async throws {
         let arguments = CommandLine.arguments.dropFirst()
         let fixtureSet = value(after: "--fixture-set", in: arguments) ?? "baseline"
         let outputPath = value(after: "--output", in: arguments)
         let variantName = value(after: "--variant", in: arguments) ?? "production_current"
         let compareBaselinePath = value(after: "--compare-baseline", in: arguments)
+        let mode = value(after: "--mode", in: arguments) ?? "replay"
 
         let fixturesRoot = packageRoot()
             .appendingPathComponent("Tests/InterviewPartnerServicesTests/Resources/TranscriptionEval", isDirectory: true)
@@ -17,7 +18,17 @@ struct InterviewPartnerTranscriptionEvalCLI {
             fixtureSet: fixtureSet
         )
         let variant = variant(named: variantName)
-        let report = TranscriptionBenchmarkRunner.run(fixtures: fixtures, variant: variant)
+        let report: TranscriptionBenchmarkReport
+        switch mode {
+        case "audio-integration":
+            report = try await AudioIntegrationBenchmarkRunner.run(
+                fixtures: fixtures,
+                fixturesRoot: fixturesRoot,
+                variant: variant
+            )
+        default:
+            report = TranscriptionBenchmarkRunner.run(fixtures: fixtures, variant: variant)
+        }
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

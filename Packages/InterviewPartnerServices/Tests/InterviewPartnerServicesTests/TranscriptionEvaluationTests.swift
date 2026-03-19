@@ -1,4 +1,5 @@
 import Foundation
+import InterviewPartnerDomain
 import Testing
 @testable import InterviewPartnerServices
 
@@ -26,7 +27,14 @@ import Testing
         #expect(after.metrics.turnBoundaryMAEMs <= before.metrics.turnBoundaryMAEMs)
         #expect(after.metrics.lateFinalizationP95Ms <= before.metrics.lateFinalizationP95Ms)
         #expect(after.metrics.splitMergeErrorCount <= before.metrics.splitMergeErrorCount)
+        #expect(after.metrics.expectedTurnRecall >= before.metrics.expectedTurnRecall)
+        #expect(after.metrics.actualTurnPrecision >= before.metrics.actualTurnPrecision)
+        #expect(after.metrics.missingExpectedTurnCount <= before.metrics.missingExpectedTurnCount)
+        #expect(after.metrics.extraActualTurnCount <= before.metrics.extraActualTurnCount)
+        #expect(after.metrics.sessionCoverageRatio >= before.metrics.sessionCoverageRatio)
         #expect(after.metrics.finalSpeakerAccuracy >= before.metrics.finalSpeakerAccuracy)
+        #expect(after.metrics.finalSpeakerCoverageRecall >= before.metrics.finalSpeakerCoverageRecall)
+        #expect(after.metrics.finalSpeakerCountError <= before.metrics.finalSpeakerCountError)
     }
 }
 
@@ -52,10 +60,53 @@ import Testing
         #expect(fixture.metrics.turnBoundaryMAEMs <= baselineFixture.metrics.turnBoundaryMAEMs)
         #expect(fixture.metrics.lateFinalizationP95Ms <= baselineFixture.metrics.lateFinalizationP95Ms)
         #expect(fixture.metrics.splitMergeErrorCount <= baselineFixture.metrics.splitMergeErrorCount)
+        #expect(fixture.metrics.expectedTurnRecall >= baselineFixture.metrics.expectedTurnRecall)
+        #expect(fixture.metrics.actualTurnPrecision >= baselineFixture.metrics.actualTurnPrecision)
+        #expect(fixture.metrics.missingExpectedTurnCount <= baselineFixture.metrics.missingExpectedTurnCount)
+        #expect(fixture.metrics.extraActualTurnCount <= baselineFixture.metrics.extraActualTurnCount)
+        #expect(fixture.metrics.sessionCoverageRatio >= baselineFixture.metrics.sessionCoverageRatio)
         #expect(fixture.metrics.liveSpeakerAccuracy >= baselineFixture.metrics.liveSpeakerAccuracy)
         #expect(fixture.metrics.finalSpeakerAccuracy >= baselineFixture.metrics.finalSpeakerAccuracy)
+        #expect(fixture.metrics.liveSpeakerCoverageRecall >= baselineFixture.metrics.liveSpeakerCoverageRecall)
+        #expect(fixture.metrics.finalSpeakerCoverageRecall >= baselineFixture.metrics.finalSpeakerCoverageRecall)
+        #expect(fixture.metrics.liveSpeakerCountError <= baselineFixture.metrics.liveSpeakerCountError)
+        #expect(fixture.metrics.finalSpeakerCountError <= baselineFixture.metrics.finalSpeakerCountError)
         #expect(fixture.metrics.offlineRuntimeRTF <= 0.25)
     }
+}
+
+@Test func coverageMetricsExposeTurnTruncation() {
+    let expected = [
+        ReplayExpectedTurn(text: "one", speakerLabel: "Speaker A", startSeconds: 0, endSeconds: 1),
+        ReplayExpectedTurn(text: "two", speakerLabel: "Speaker B", startSeconds: 2, endSeconds: 3),
+        ReplayExpectedTurn(text: "three", speakerLabel: "Speaker C", startSeconds: 4, endSeconds: 5),
+    ]
+    let actual = [
+        BenchmarkTurn(
+            turn: TranscriptTurn(
+                speakerLabel: "Speaker A",
+                text: "one",
+                timestamp: Date(timeIntervalSinceReferenceDate: 1),
+                isFinal: true,
+                startTimeSeconds: 0,
+                endTimeSeconds: 1,
+                speakerMatchConfidence: 1,
+                speakerLabelIsProvisional: false
+            ),
+            finalizedAtSeconds: 1.2
+        )
+    ]
+
+    #expect(abs(BoundaryMetrics.expectedTurnRecall(actual: actual, expected: expected) - (1.0 / 3.0)) < 0.0001)
+    #expect(BoundaryMetrics.missingExpectedTurnCount(actual: actual, expected: expected) == 2)
+    #expect(abs(BoundaryMetrics.sessionCoverageRatio(actual: actual, expected: expected) - 0.2) < 0.0001)
+    #expect(
+        SpeakerMetrics.speakerCountError(
+            actual: actual,
+            expected: expected,
+            label: { (turn: BenchmarkTurn) in turn.turn.speakerLabel }
+        ) == 2
+    )
 }
 
 private func fixtureRoot() -> URL {

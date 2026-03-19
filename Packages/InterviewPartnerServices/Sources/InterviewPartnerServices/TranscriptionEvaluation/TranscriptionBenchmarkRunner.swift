@@ -65,41 +65,101 @@ public struct ReplayFixture: Codable, Sendable {
 }
 
 public struct FixtureBenchmarkMetrics: Codable, Hashable, Sendable {
+    public let expectedTurnCount: Int
+    public let actualLiveTurnCount: Int
+    public let actualFinalTurnCount: Int
     public let turnBoundaryMAEMs: Double
     public let lateFinalizationP95Ms: Double
     public let splitMergeErrorCount: Int
+    public let expectedTurnRecall: Double
+    public let actualTurnPrecision: Double
+    public let missingExpectedTurnCount: Int
+    public let extraActualTurnCount: Int
+    public let sessionCoverageRatio: Double
     public let liveSpeakerAccuracy: Double
     public let finalSpeakerAccuracy: Double
+    public let expectedSpeakerCount: Int
+    public let actualLiveSpeakerCount: Int
+    public let actualFinalSpeakerCount: Int
+    public let liveSpeakerCoverageRecall: Double
+    public let finalSpeakerCoverageRecall: Double
+    public let liveSpeakerCountError: Int
+    public let finalSpeakerCountError: Int
     public let unclearRate: Double
     public let offlineRuntimeRTF: Double
     public let missingSpeechEndCount: Int
 
     public init(
+        expectedTurnCount: Int,
+        actualLiveTurnCount: Int,
+        actualFinalTurnCount: Int,
         turnBoundaryMAEMs: Double,
         lateFinalizationP95Ms: Double,
         splitMergeErrorCount: Int,
+        expectedTurnRecall: Double,
+        actualTurnPrecision: Double,
+        missingExpectedTurnCount: Int,
+        extraActualTurnCount: Int,
+        sessionCoverageRatio: Double,
         liveSpeakerAccuracy: Double,
         finalSpeakerAccuracy: Double,
+        expectedSpeakerCount: Int,
+        actualLiveSpeakerCount: Int,
+        actualFinalSpeakerCount: Int,
+        liveSpeakerCoverageRecall: Double,
+        finalSpeakerCoverageRecall: Double,
+        liveSpeakerCountError: Int,
+        finalSpeakerCountError: Int,
         unclearRate: Double,
         offlineRuntimeRTF: Double,
         missingSpeechEndCount: Int
     ) {
+        self.expectedTurnCount = expectedTurnCount
+        self.actualLiveTurnCount = actualLiveTurnCount
+        self.actualFinalTurnCount = actualFinalTurnCount
         self.turnBoundaryMAEMs = turnBoundaryMAEMs
         self.lateFinalizationP95Ms = lateFinalizationP95Ms
         self.splitMergeErrorCount = splitMergeErrorCount
+        self.expectedTurnRecall = expectedTurnRecall
+        self.actualTurnPrecision = actualTurnPrecision
+        self.missingExpectedTurnCount = missingExpectedTurnCount
+        self.extraActualTurnCount = extraActualTurnCount
+        self.sessionCoverageRatio = sessionCoverageRatio
         self.liveSpeakerAccuracy = liveSpeakerAccuracy
         self.finalSpeakerAccuracy = finalSpeakerAccuracy
+        self.expectedSpeakerCount = expectedSpeakerCount
+        self.actualLiveSpeakerCount = actualLiveSpeakerCount
+        self.actualFinalSpeakerCount = actualFinalSpeakerCount
+        self.liveSpeakerCoverageRecall = liveSpeakerCoverageRecall
+        self.finalSpeakerCoverageRecall = finalSpeakerCoverageRecall
+        self.liveSpeakerCountError = liveSpeakerCountError
+        self.finalSpeakerCountError = finalSpeakerCountError
         self.unclearRate = unclearRate
         self.offlineRuntimeRTF = offlineRuntimeRTF
         self.missingSpeechEndCount = missingSpeechEndCount
     }
 
     enum CodingKeys: String, CodingKey {
+        case expectedTurnCount = "expected_turn_count"
+        case actualLiveTurnCount = "actual_live_turn_count"
+        case actualFinalTurnCount = "actual_final_turn_count"
         case turnBoundaryMAEMs = "turn_boundary_mae_ms"
         case lateFinalizationP95Ms = "late_finalization_p95_ms"
         case splitMergeErrorCount = "split_merge_error_count"
+        case expectedTurnRecall = "expected_turn_recall"
+        case actualTurnPrecision = "actual_turn_precision"
+        case missingExpectedTurnCount = "missing_expected_turn_count"
+        case extraActualTurnCount = "extra_actual_turn_count"
+        case sessionCoverageRatio = "session_coverage_ratio"
         case liveSpeakerAccuracy = "live_speaker_accuracy"
         case finalSpeakerAccuracy = "final_speaker_accuracy"
+        case expectedSpeakerCount = "expected_speaker_count"
+        case actualLiveSpeakerCount = "actual_live_speaker_count"
+        case actualFinalSpeakerCount = "actual_final_speaker_count"
+        case liveSpeakerCoverageRecall = "live_speaker_coverage_recall"
+        case finalSpeakerCoverageRecall = "final_speaker_coverage_recall"
+        case liveSpeakerCountError = "live_speaker_count_error"
+        case finalSpeakerCountError = "final_speaker_count_error"
         case unclearRate = "unclear_rate"
         case offlineRuntimeRTF = "offline_runtime_rtf"
         case missingSpeechEndCount = "missing_speech_end_count"
@@ -107,16 +167,46 @@ public struct FixtureBenchmarkMetrics: Codable, Hashable, Sendable {
 
     func value(named metricName: String) -> Double? {
         switch metricName {
+        case "expected_turn_count":
+            return Double(expectedTurnCount)
+        case "actual_live_turn_count":
+            return Double(actualLiveTurnCount)
+        case "actual_final_turn_count":
+            return Double(actualFinalTurnCount)
         case "turn_boundary_mae_ms":
             return turnBoundaryMAEMs
         case "late_finalization_p95_ms":
             return lateFinalizationP95Ms
         case "split_merge_error_count":
             return Double(splitMergeErrorCount)
+        case "expected_turn_recall":
+            return expectedTurnRecall
+        case "actual_turn_precision":
+            return actualTurnPrecision
+        case "missing_expected_turn_count":
+            return Double(missingExpectedTurnCount)
+        case "extra_actual_turn_count":
+            return Double(extraActualTurnCount)
+        case "session_coverage_ratio":
+            return sessionCoverageRatio
         case "live_speaker_accuracy":
             return liveSpeakerAccuracy
         case "final_speaker_accuracy":
             return finalSpeakerAccuracy
+        case "expected_speaker_count":
+            return Double(expectedSpeakerCount)
+        case "actual_live_speaker_count":
+            return Double(actualLiveSpeakerCount)
+        case "actual_final_speaker_count":
+            return Double(actualFinalSpeakerCount)
+        case "live_speaker_coverage_recall":
+            return liveSpeakerCoverageRecall
+        case "final_speaker_coverage_recall":
+            return finalSpeakerCoverageRecall
+        case "live_speaker_count_error":
+            return Double(liveSpeakerCountError)
+        case "final_speaker_count_error":
+            return Double(finalSpeakerCountError)
         case "unclear_rate":
             return unclearRate
         case "offline_runtime_rtf":
@@ -361,6 +451,9 @@ public enum TranscriptionBenchmarkRunner {
         }
 
         let metrics = FixtureBenchmarkMetrics(
+            expectedTurnCount: fixture.expectedTurns.count,
+            actualLiveTurnCount: liveTurns.count,
+            actualFinalTurnCount: finalizedTurns.count,
             turnBoundaryMAEMs: BoundaryMetrics.meanAbsoluteBoundaryErrorMs(
                 actual: liveTurns,
                 expected: fixture.expectedTurns
@@ -373,12 +466,61 @@ public enum TranscriptionBenchmarkRunner {
                 actual: liveTurns,
                 expected: fixture.expectedTurns
             ),
+            expectedTurnRecall: BoundaryMetrics.expectedTurnRecall(
+                actual: liveTurns,
+                expected: fixture.expectedTurns
+            ),
+            actualTurnPrecision: BoundaryMetrics.actualTurnPrecision(
+                actual: liveTurns,
+                expected: fixture.expectedTurns
+            ),
+            missingExpectedTurnCount: BoundaryMetrics.missingExpectedTurnCount(
+                actual: liveTurns,
+                expected: fixture.expectedTurns
+            ),
+            extraActualTurnCount: BoundaryMetrics.extraActualTurnCount(
+                actual: liveTurns,
+                expected: fixture.expectedTurns
+            ),
+            sessionCoverageRatio: BoundaryMetrics.sessionCoverageRatio(
+                actual: liveTurns,
+                expected: fixture.expectedTurns
+            ),
             liveSpeakerAccuracy: SpeakerMetrics.accuracy(
                 actual: liveTurns,
                 expected: fixture.expectedTurns,
                 label: { $0.turn.speakerLabel }
             ),
             finalSpeakerAccuracy: SpeakerMetrics.accuracy(
+                actual: finalizedTurns,
+                expected: fixture.expectedTurns,
+                label: \.speakerLabel
+            ),
+            expectedSpeakerCount: SpeakerMetrics.expectedSpeakerCount(expected: fixture.expectedTurns),
+            actualLiveSpeakerCount: SpeakerMetrics.distinctSpeakerCount(
+                actual: liveTurns,
+                label: { $0.turn.speakerLabel }
+            ),
+            actualFinalSpeakerCount: SpeakerMetrics.distinctSpeakerCount(
+                actual: finalizedTurns,
+                label: \.speakerLabel
+            ),
+            liveSpeakerCoverageRecall: SpeakerMetrics.speakerCoverageRecall(
+                actual: liveTurns,
+                expected: fixture.expectedTurns,
+                label: { $0.turn.speakerLabel }
+            ),
+            finalSpeakerCoverageRecall: SpeakerMetrics.speakerCoverageRecall(
+                actual: finalizedTurns,
+                expected: fixture.expectedTurns,
+                label: \.speakerLabel
+            ),
+            liveSpeakerCountError: SpeakerMetrics.speakerCountError(
+                actual: liveTurns,
+                expected: fixture.expectedTurns,
+                label: { $0.turn.speakerLabel }
+            ),
+            finalSpeakerCountError: SpeakerMetrics.speakerCountError(
                 actual: finalizedTurns,
                 expected: fixture.expectedTurns,
                 label: \.speakerLabel
@@ -395,11 +537,30 @@ public enum TranscriptionBenchmarkRunner {
         if metrics.splitMergeErrorCount > 0 {
             notes.append("Turn split/merge mismatch detected.")
         }
+        if metrics.expectedTurnRecall < 1 {
+            notes.append(
+                "Expected turn recall fell to \(metrics.actualLiveTurnCount)/\(metrics.expectedTurnCount)."
+            )
+        }
+        if metrics.actualTurnPrecision < 1 {
+            notes.append("Extra or mismatched live turns detected.")
+        }
+        if metrics.sessionCoverageRatio < 1 {
+            notes.append(
+                "Session coverage only reached \(String(format: "%.2f", metrics.sessionCoverageRatio * 100))% of the expected timeline."
+            )
+        }
         if metrics.liveSpeakerAccuracy < 1 {
             notes.append("Live speaker label mismatch detected.")
         }
         if metrics.finalSpeakerAccuracy < 1 {
             notes.append("Final speaker label mismatch detected.")
+        }
+        if metrics.liveSpeakerCountError > 0 {
+            notes.append("Live speaker cardinality mismatch detected.")
+        }
+        if metrics.finalSpeakerCountError > 0 {
+            notes.append("Final speaker cardinality mismatch detected.")
         }
 
         return FixtureBenchmarkReport(

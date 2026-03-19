@@ -534,7 +534,7 @@ public final class DefaultTranscriptionService: TranscriptionService {
     }
 }
 
-private actor LiveDiarizationEngine {
+actor LiveDiarizationEngine {
     private let audioConverter = AudioConverter()
     private let diarizer: SortformerDiarizer
 
