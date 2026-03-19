@@ -16,12 +16,13 @@ There are a thousand user interview apps, but this one is mine. This app is inte
 
 ## Current Status
 
-The repository currently ships a **Sprint 0.5 diarization spike** rather than the full product surface described above.
+The repository currently ships **Sprint 2 - Active Session Core**.
 
-- Live partial transcription is powered by FluidAudio's `StreamingEouAsrManager`
-- Finalized turns are aligned onto a parallel Sortformer diarization timeline to assign **provisional** speaker labels such as Speaker A / Speaker B
-- Finalized transcript turns are persisted through SwiftData so each run can be inspected after capture
-- The diarization mapping is still experimental because the EOU callback returns transcript strings, not speaker IDs or turn timestamps directly
+- Guide management is available in-app, with SwiftData-backed persistence and workspace import/export plumbing
+- Session setup, active interview capture, live transcript display, question tracking, ad hoc notes, and session history are implemented
+- Live transcription is powered by FluidAudio's `StreamingEouAsrManager`, with Sortformer-based diarization for provisional speaker labels and a Speech fallback path when FluidAudio is unavailable
+- Finalized transcript turns, gaps, question statuses, and notes are persisted incrementally through SwiftData during the session
+- Speaker labeling is still heuristic and not production-grade yet, and export generation remains Sprint 3 work
 
 ## AI Assistant Rules Files
 
@@ -52,30 +53,35 @@ These rules files are **starting points** - feel free to:
 
 ```
 InterviewPartner/
-├── Config/                                  # XCConfig, Info.plist, entitlements
-├── InterviewPartner.xcworkspace/              # Open this file in Xcode
-├── InterviewPartner.xcodeproj/                # App shell project
-├── InterviewPartner/                          # App target + SwiftData container wiring
-│   ├── Assets.xcassets/                       # App-level assets (icons, colors)
-│   ├── InterviewPartnerApp.swift              # App entry point
-│   └── InterviewPartner.xctestplan            # Test configuration
-├── InterviewPartnerPackage/                   # 🚀 Primary development area
-│   ├── Package.swift                          # Package configuration
-│   ├── Sources/InterviewPartnerFeature/       # Your feature code
-│   └── Tests/InterviewPartnerFeatureTests/    # Unit tests
-├── InterviewPartnerUITests/                   # UI automation tests
-└── docs/                                      # PRD and supporting docs
+├── Config/                                   # XCConfig, Info.plist, entitlements
+├── InterviewPartner.xcworkspace/             # Open this file in Xcode
+├── InterviewPartner.xcodeproj/               # App shell project
+├── InterviewPartner/                         # App target wiring
+│   ├── Assets.xcassets/                      # App-level assets (icons, colors)
+│   ├── InterviewPartnerApp.swift             # App entry point
+│   └── InterviewPartner.xctestplan           # Test configuration
+├── Packages/
+│   ├── InterviewPartnerDomain/               # Core models and repository protocols
+│   ├── InterviewPartnerData/                 # SwiftData schema and repository implementations
+│   ├── InterviewPartnerFeatures/             # SwiftUI feature surfaces and coordinators
+│   └── InterviewPartnerServices/             # Environment, permissions, transcription, workspace services
+├── InterviewPartnerPackage/                  # Legacy scaffold package; not the main implementation path
+├── InterviewPartnerUITests/                  # UI automation tests
+├── docs/                                     # PRD and supporting docs
+└── rpi/                                      # Implementation plans and research notes
 ```
 
 ## Key Architecture Points
 
-This is a modern iOS application using a **workspace + SPM package** architecture for clean separation between app shell and feature code. Built on top of [FluidAudio's](https://github.com/FluidInference/FluidAudio) great work! 
+This is a modern iOS application using a **workspace + multiple SPM packages** architecture for clean separation between the app shell, domain contracts, persistence, features, and services. Built on top of [FluidAudio's](https://github.com/FluidInference/FluidAudio) great work.
 
-### Workspace + SPM Structure
-- **App Shell**: `InterviewPartner/` contains minimal app lifecycle code plus the SwiftData model container
-- **Feature Code**: `InterviewPartnerPackage/Sources/InterviewPartnerFeature/` is where most development happens
-- **Current Spike Entry Points**: `ContentView`, `TranscriptionSpikeCoordinator`, `TranscriptTurn`, and `DiarizationSpikeSupport`
-- **Separation**: Business logic lives in the SPM package while the app target imports the package and wires persistence
+### Package Responsibilities
+- **App Shell**: `InterviewPartner/` contains the app target and injects the shared `AppEnvironment`
+- **Domain**: `Packages/InterviewPartnerDomain/` defines guide/session models and repository protocols
+- **Data**: `Packages/InterviewPartnerData/` owns the SwiftData schema plus guide/session repository implementations
+- **Features**: `Packages/InterviewPartnerFeatures/` contains the tab root plus Sessions, Guides, Settings, and active-session UI flows
+- **Services**: `Packages/InterviewPartnerServices/` wires the environment, permissions, workspace services, and transcription stack
+- **Separation**: the app target stays thin while feature and persistence logic live in packages
 
 ### Buildable Folders (Xcode 16)
 - Files added to the filesystem automatically appear in Xcode
@@ -85,22 +91,31 @@ This is a modern iOS application using a **workspace + SPM package** architectur
 ## Development Notes
 
 ### Code Organization
-Most development happens in `InterviewPartnerPackage/Sources/InterviewPartnerFeature/` - organize your code as you prefer.
+Most development happens under `Packages/`:
 
-### Running the Current Spike
+- `Packages/InterviewPartnerFeatures/Sources/InterviewPartnerFeatures/InterviewPartnerRootView.swift` wires the main tab UI
+- `Packages/InterviewPartnerFeatures/Sources/InterviewPartnerFeatures/SessionListFeature.swift` handles session history and new-session setup
+- `Packages/InterviewPartnerFeatures/Sources/InterviewPartnerFeatures/ActiveSessionFeature.swift` drives the live interview experience
+- `Packages/InterviewPartnerServices/Sources/InterviewPartnerServices/TranscriptionServices.swift` contains the FluidAudio and Speech transcription integration
+- `Packages/InterviewPartnerData/Sources/InterviewPartnerData/SwiftDataSessionRepository.swift` persists incremental session state
+
+### Running the App
 - Open `InterviewPartner.xcworkspace` in Xcode
-- Run the app and tap **Start Transcription** on the Sprint 0.5 diarization screen
+- Run the `InterviewPartner` scheme
 - The first run will request microphone access
-- The first transcription start may also download/load FluidAudio models into Application Support, so expect a longer startup
-- Sortformer diarization is loaded separately; if it fails, the spike can still capture transcript turns but speaker labels may remain unclear
-- Pause briefly between sentences so the EOU callback can finalize a turn
+- Create or import a workspace in Settings if needed, then create a guide in the Guides tab
+- Start a session from the Sessions tab, choose a guide, and optionally set a participant label
+- The first transcription start may download or load FluidAudio models into Application Support, so expect a longer startup
+- If diarization or FluidAudio startup fails, the app can fall back to Speech-based transcription with reduced capability
+- Pause briefly between sentences so the end-of-utterance detector can finalize a turn
 
-### What the Spike Proves Today
-- Live partial transcript updates
-- Finalized utterance turns from the EOU callback
-- Heuristic speaker attribution by aligning finalized turns to a separate diarization timeline
-- Persistence of transcript turns with speaker label, timestamps, and attribution confidence
-- A concrete starting point for Sprint 2, but not production-grade speaker labeling yet
+### What Sprint 2 Proves Today
+- Sessions can be created from a persisted guide and returned to history when finalized
+- Live partial transcript updates and finalized utterance turns flow into the active-session UI
+- Question coverage can be tracked in-session, including tap-to-cycle status changes and skip interactions
+- Ad hoc notes and transcript gaps are persisted during capture
+- Finalized turns are stored with speaker label, timing metadata, and attribution confidence
+- Speaker labeling still needs refinement, and export generation is intentionally deferred to Sprint 3
 
 ### Public API Requirements
 Types exposed to the app target need `public` access:
@@ -115,21 +130,22 @@ public struct NewView: View {
 ```
 
 ### Adding Dependencies
-Edit `InterviewPartnerPackage/Package.swift` to add SPM dependencies:
+Edit the specific package that owns the concern you are changing. For example, transcription and environment dependencies live in `Packages/InterviewPartnerServices/Package.swift`:
 ```swift
 dependencies: [
     .package(url: "https://github.com/example/SomePackage", from: "1.0.0")
 ],
 targets: [
     .target(
-        name: "InterviewPartnerFeature",
+        name: "InterviewPartnerServices",
         dependencies: ["SomePackage"]
     ),
 ]
 ```
 
 ### Test Structure
-- **Unit Tests**: `InterviewPartnerPackage/Tests/InterviewPartnerFeatureTests/` (Swift Testing framework)
+- **Domain Tests**: `Packages/InterviewPartnerDomain/Tests/InterviewPartnerDomainTests/` (Swift Testing framework)
+- **Data Tests**: `Packages/InterviewPartnerData/Tests/InterviewPartnerDataTests/` (Swift Testing framework)
 - **UI Tests**: `InterviewPartnerUITests/` (XCUITest framework)
 - **Test Plan**: `InterviewPartner.xctestplan` coordinates all tests
 
@@ -156,7 +172,7 @@ App capabilities are managed through a **declarative entitlements file**:
 To include assets in your feature package:
 ```swift
 .target(
-    name: "InterviewPartnerFeature",
+    name: "InterviewPartnerFeatures",
     dependencies: [],
     resources: [.process("Resources")]
 )
