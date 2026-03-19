@@ -1,0 +1,23 @@
+{
+  "fixture_id": "local_excerpt_sample",
+  "fixture_set": "local_audio",
+  "description": "Replace this with a short approved excerpt. Keep media outside source control.",
+  "audio_file_name": "excerpt.wav",
+  "frames": [],
+  "expected_turns": [
+    {
+      "text": "Short excerpt turn one",
+      "speaker_label": "Speaker A",
+      "start_seconds": 0.00,
+      "end_seconds": 1.80
+    },
+    {
+      "text": "Short excerpt turn two",
+      "speaker_label": "Speaker B",
+      "start_seconds": 2.10,
+      "end_seconds": 3.60
+    }
+  ],
+  "offline_diarization_segments": [],
+  "offline_runtime_seconds": 0.0
+}

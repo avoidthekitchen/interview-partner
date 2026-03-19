@@ -10,8 +10,11 @@ struct InterviewPartnerTranscriptionEvalCLI {
         let variantName = value(after: "--variant", in: arguments) ?? "production_current"
         let compareBaselinePath = value(after: "--compare-baseline", in: arguments)
         let mode = value(after: "--mode", in: arguments) ?? "replay"
+        let fixturesRootPath = value(after: "--fixtures-root", in: arguments)
 
-        let fixturesRoot = packageRoot()
+        let fixturesRoot = fixturesRootPath.map {
+            URL(fileURLWithPath: $0, isDirectory: true)
+        } ?? packageRoot()
             .appendingPathComponent("Tests/InterviewPartnerServicesTests/Resources/TranscriptionEval", isDirectory: true)
         let fixtures = try TranscriptionBenchmarkRunner.loadFixtures(
             at: fixturesRoot,
