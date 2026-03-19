@@ -5,13 +5,13 @@ import InterviewPartnerServices
 
 @main
 struct InterviewPartnerApp: App {
-    private let appEnvironment: Sprint1AppEnvironment
+    private let appEnvironment: AppEnvironment
 
     init() {
         do {
-            appEnvironment = try Sprint1AppEnvironment()
+            appEnvironment = try AppEnvironment()
         } catch {
-            fatalError("Failed to bootstrap Sprint 1 environment: \(error)")
+            fatalError("Failed to bootstrap app environment: \(error)")
         }
     }
 

@@ -14,11 +14,21 @@ public protocol GuideRepository: AnyObject {
 @MainActor
 public protocol SessionRepository: AnyObject {
     func fetchSessions() throws -> [SessionSummary]
+    func fetchSession(id: UUID) throws -> SessionRecord?
     @discardableResult
     func createSession(
         guideSnapshot: GuideSnapshot,
         participantLabel: String?
-    ) throws -> UUID
+    ) throws -> SessionRecord
+    func appendTranscriptTurn(_ turn: TranscriptTurn, to sessionID: UUID) throws
+    func appendTranscriptGap(_ gap: TranscriptGap, to sessionID: UUID) throws
+    func upsertQuestionStatus(_ status: QuestionAnswerStatus, for sessionID: UUID) throws
+    func appendAdHocNote(_ note: AdHocNote, to sessionID: UUID) throws
+    func finalizeSession(
+        id: UUID,
+        endedAt: Date,
+        reconciledTurns: [TranscriptTurn]
+    ) throws -> SessionRecord
 }
 
 @MainActor
@@ -40,6 +50,7 @@ public protocol WorkspaceGuideImporter: AnyObject {
 @MainActor
 public protocol PermissionManager: AnyObject {
     func microphonePermissionState() -> MicrophonePermissionState
+    func requestMicrophonePermission() async -> MicrophonePermissionState
 }
 
 @MainActor

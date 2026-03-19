@@ -108,6 +108,10 @@ public final class TranscriptTurn {
     public var text: String
     public var timestamp: Date
     public var isFinal: Bool
+    public var startTimeSeconds: Double?
+    public var endTimeSeconds: Double?
+    public var speakerMatchConfidence: Double?
+    public var speakerLabelIsProvisional: Bool
     public var session: Session?
 
     public init(
@@ -116,6 +120,10 @@ public final class TranscriptTurn {
         text: String,
         timestamp: Date = .now,
         isFinal: Bool = true,
+        startTimeSeconds: Double? = nil,
+        endTimeSeconds: Double? = nil,
+        speakerMatchConfidence: Double? = nil,
+        speakerLabelIsProvisional: Bool = false,
         session: Session? = nil
     ) {
         self.id = id
@@ -123,6 +131,10 @@ public final class TranscriptTurn {
         self.text = text
         self.timestamp = timestamp
         self.isFinal = isFinal
+        self.startTimeSeconds = startTimeSeconds
+        self.endTimeSeconds = endTimeSeconds
+        self.speakerMatchConfidence = speakerMatchConfidence
+        self.speakerLabelIsProvisional = speakerLabelIsProvisional
         self.session = session
     }
 }

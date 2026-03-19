@@ -38,17 +38,202 @@ public final class SwiftDataSessionRepository: SessionRepository {
         }
     }
 
+    public func fetchSession(id: UUID) throws -> SessionRecord? {
+        try fetchSessionModel(id: id).map(Self.record(from:))
+    }
+
     @discardableResult
     public func createSession(
         guideSnapshot: GuideSnapshot,
         participantLabel: String?
-    ) throws -> UUID {
+    ) throws -> SessionRecord {
+        let questionStatuses = guideSnapshot.questions.map { question in
+            QuestionStatus(
+                questionID: question.id,
+                status: .notStarted
+            )
+        }
         let session = Session(
             guideSnapshot: guideSnapshot,
-            participantLabel: participantLabel
+            participantLabel: participantLabel,
+            questionStatuses: questionStatuses
         )
         modelContainer.mainContext.insert(session)
         try modelContainer.mainContext.save()
-        return session.id
+        return Self.record(from: session)
+    }
+
+    public func appendTranscriptTurn(_ turn: InterviewPartnerDomain.TranscriptTurn, to sessionID: UUID) throws {
+        let session = try requireSession(id: sessionID)
+        let turnModel = TranscriptTurn(
+            id: turn.id,
+            speakerLabel: turn.speakerLabel,
+            text: turn.text,
+            timestamp: turn.timestamp,
+            isFinal: turn.isFinal,
+            startTimeSeconds: turn.startTimeSeconds,
+            endTimeSeconds: turn.endTimeSeconds,
+            speakerMatchConfidence: turn.speakerMatchConfidence,
+            speakerLabelIsProvisional: turn.speakerLabelIsProvisional,
+            session: session
+        )
+        modelContainer.mainContext.insert(turnModel)
+        session.transcriptTurns.append(turnModel)
+        try modelContainer.mainContext.save()
+    }
+
+    public func appendTranscriptGap(_ gap: InterviewPartnerDomain.TranscriptGap, to sessionID: UUID) throws {
+        let session = try requireSession(id: sessionID)
+        let gapModel = TranscriptGap(
+            id: gap.id,
+            sessionID: gap.sessionID,
+            startTimestamp: gap.startTimestamp,
+            endTimestamp: gap.endTimestamp,
+            reason: gap.reason,
+            session: session
+        )
+        modelContainer.mainContext.insert(gapModel)
+        session.transcriptGaps.append(gapModel)
+        try modelContainer.mainContext.save()
+    }
+
+    public func upsertQuestionStatus(_ status: QuestionAnswerStatus, for sessionID: UUID) throws {
+        let session = try requireSession(id: sessionID)
+
+        if let existing = session.questionStatuses.first(where: { $0.questionID == status.questionID }) {
+            existing.status = status.status
+            existing.aiScore = status.aiScore
+        } else {
+            let newStatus = QuestionStatus(
+                id: status.id,
+                questionID: status.questionID,
+                status: status.status,
+                aiScore: status.aiScore,
+                session: session
+            )
+            modelContainer.mainContext.insert(newStatus)
+            session.questionStatuses.append(newStatus)
+        }
+
+        try modelContainer.mainContext.save()
+    }
+
+    public func appendAdHocNote(_ note: InterviewPartnerDomain.AdHocNote, to sessionID: UUID) throws {
+        let session = try requireSession(id: sessionID)
+        let noteModel = AdHocNote(
+            id: note.id,
+            text: note.text,
+            timestamp: note.timestamp,
+            session: session
+        )
+        modelContainer.mainContext.insert(noteModel)
+        session.adHocNotes.append(noteModel)
+        try modelContainer.mainContext.save()
+    }
+
+    public func finalizeSession(
+        id: UUID,
+        endedAt: Date,
+        reconciledTurns: [InterviewPartnerDomain.TranscriptTurn]
+    ) throws -> SessionRecord {
+        let session = try requireSession(id: id)
+        session.endedAt = endedAt
+
+        let turnsByID = Dictionary(uniqueKeysWithValues: session.transcriptTurns.map { ($0.id, $0) })
+        for turn in reconciledTurns {
+            guard let existing = turnsByID[turn.id] else { continue }
+            existing.speakerLabel = turn.speakerLabel
+            existing.text = turn.text
+            existing.timestamp = turn.timestamp
+            existing.isFinal = turn.isFinal
+            existing.startTimeSeconds = turn.startTimeSeconds
+            existing.endTimeSeconds = turn.endTimeSeconds
+            existing.speakerMatchConfidence = turn.speakerMatchConfidence
+            existing.speakerLabelIsProvisional = turn.speakerLabelIsProvisional
+        }
+
+        try modelContainer.mainContext.save()
+        return Self.record(from: session)
+    }
+
+    private func fetchSessionModel(id: UUID) throws -> Session? {
+        var descriptor = FetchDescriptor<Session>(
+            predicate: #Predicate<Session> { session in
+                session.id == id
+            }
+        )
+        descriptor.fetchLimit = 1
+        return try modelContainer.mainContext.fetch(descriptor).first
+    }
+
+    private func requireSession(id: UUID) throws -> Session {
+        guard let session = try fetchSessionModel(id: id) else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        return session
+    }
+
+    private static func record(from session: Session) -> SessionRecord {
+        SessionRecord(
+            id: session.id,
+            guideSnapshot: session.guideSnapshot,
+            participantLabel: session.participantLabel,
+            startedAt: session.startedAt,
+            endedAt: session.endedAt,
+            transcriptTurns: session.transcriptTurns
+                .sorted { $0.timestamp < $1.timestamp }
+                .map(Self.domainTurn(from:)),
+            transcriptGaps: session.transcriptGaps
+                .sorted { $0.startTimestamp < $1.startTimestamp }
+                .map(Self.domainGap(from:)),
+            questionStatuses: session.questionStatuses
+                .map(Self.domainStatus(from:))
+                .sorted { $0.questionID.uuidString < $1.questionID.uuidString },
+            adHocNotes: session.adHocNotes
+                .sorted { $0.timestamp < $1.timestamp }
+                .map(Self.domainNote(from:)),
+            hasPendingExport: !session.exportQueueEntries.isEmpty
+        )
+    }
+
+    private static func domainTurn(from turn: TranscriptTurn) -> InterviewPartnerDomain.TranscriptTurn {
+        InterviewPartnerDomain.TranscriptTurn(
+            id: turn.id,
+            speakerLabel: turn.speakerLabel,
+            text: turn.text,
+            timestamp: turn.timestamp,
+            isFinal: turn.isFinal,
+            startTimeSeconds: turn.startTimeSeconds,
+            endTimeSeconds: turn.endTimeSeconds,
+            speakerMatchConfidence: turn.speakerMatchConfidence,
+            speakerLabelIsProvisional: turn.speakerLabelIsProvisional
+        )
+    }
+
+    private static func domainGap(from gap: TranscriptGap) -> InterviewPartnerDomain.TranscriptGap {
+        InterviewPartnerDomain.TranscriptGap(
+            id: gap.id,
+            sessionID: gap.sessionID,
+            startTimestamp: gap.startTimestamp,
+            endTimestamp: gap.endTimestamp,
+            reason: gap.reason
+        )
+    }
+
+    private static func domainStatus(from status: QuestionStatus) -> QuestionAnswerStatus {
+        QuestionAnswerStatus(
+            id: status.id,
+            questionID: status.questionID,
+            status: status.status,
+            aiScore: status.aiScore
+        )
+    }
+
+    private static func domainNote(from note: AdHocNote) -> InterviewPartnerDomain.AdHocNote {
+        InterviewPartnerDomain.AdHocNote(
+            id: note.id,
+            text: note.text,
+            timestamp: note.timestamp
+        )
     }
 }

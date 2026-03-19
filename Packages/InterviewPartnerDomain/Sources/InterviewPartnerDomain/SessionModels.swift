@@ -34,19 +34,31 @@ public struct TranscriptTurn: Identifiable, Codable, Hashable, Sendable {
     public var text: String
     public var timestamp: Date
     public var isFinal: Bool
+    public var startTimeSeconds: TimeInterval?
+    public var endTimeSeconds: TimeInterval?
+    public var speakerMatchConfidence: Double?
+    public var speakerLabelIsProvisional: Bool
 
     public init(
         id: UUID = UUID(),
         speakerLabel: String = "Speaker A",
         text: String,
         timestamp: Date = .now,
-        isFinal: Bool = true
+        isFinal: Bool = true,
+        startTimeSeconds: TimeInterval? = nil,
+        endTimeSeconds: TimeInterval? = nil,
+        speakerMatchConfidence: Double? = nil,
+        speakerLabelIsProvisional: Bool = false
     ) {
         self.id = id
         self.speakerLabel = speakerLabel
         self.text = text
         self.timestamp = timestamp
         self.isFinal = isFinal
+        self.startTimeSeconds = startTimeSeconds
+        self.endTimeSeconds = endTimeSeconds
+        self.speakerMatchConfidence = speakerMatchConfidence
+        self.speakerLabelIsProvisional = speakerLabelIsProvisional
     }
 }
 
@@ -134,6 +146,43 @@ public struct SessionSummary: Identifiable, Hashable, Sendable {
         self.endedAt = endedAt
         self.mustCoverQuestionCount = mustCoverQuestionCount
         self.answeredMustCoverCount = answeredMustCoverCount
+        self.hasPendingExport = hasPendingExport
+    }
+}
+
+public struct SessionRecord: Identifiable, Codable, Hashable, Sendable {
+    public var id: UUID
+    public var guideSnapshot: GuideSnapshot
+    public var participantLabel: String?
+    public var startedAt: Date
+    public var endedAt: Date?
+    public var transcriptTurns: [TranscriptTurn]
+    public var transcriptGaps: [TranscriptGap]
+    public var questionStatuses: [QuestionAnswerStatus]
+    public var adHocNotes: [AdHocNote]
+    public var hasPendingExport: Bool
+
+    public init(
+        id: UUID,
+        guideSnapshot: GuideSnapshot,
+        participantLabel: String?,
+        startedAt: Date,
+        endedAt: Date?,
+        transcriptTurns: [TranscriptTurn],
+        transcriptGaps: [TranscriptGap],
+        questionStatuses: [QuestionAnswerStatus],
+        adHocNotes: [AdHocNote],
+        hasPendingExport: Bool
+    ) {
+        self.id = id
+        self.guideSnapshot = guideSnapshot
+        self.participantLabel = participantLabel
+        self.startedAt = startedAt
+        self.endedAt = endedAt
+        self.transcriptTurns = transcriptTurns
+        self.transcriptGaps = transcriptGaps
+        self.questionStatuses = questionStatuses
+        self.adHocNotes = adHocNotes
         self.hasPendingExport = hasPendingExport
     }
 }

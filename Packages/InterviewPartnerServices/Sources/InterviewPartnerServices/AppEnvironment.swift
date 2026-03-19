@@ -3,7 +3,7 @@ import InterviewPartnerData
 import InterviewPartnerDomain
 
 @MainActor
-public final class Sprint1AppEnvironment {
+public final class AppEnvironment {
     public let modelContainer: ModelContainer
     public let guideRepository: any GuideRepository
     public let sessionRepository: any SessionRepository
@@ -11,6 +11,7 @@ public final class Sprint1AppEnvironment {
     public let workspaceGuideImporter: any WorkspaceGuideImporter
     public let permissionManager: any PermissionManager
     public let keychainStore: any KeychainStore
+    public let makeTranscriptionService: @MainActor () -> any TranscriptionService
 
     public init(inMemoryOnly: Bool = false) throws {
         let modelContainer = try InterviewPartnerModelContainer.make(inMemoryOnly: inMemoryOnly)
@@ -19,8 +20,9 @@ public final class Sprint1AppEnvironment {
         self.modelContainer = modelContainer
         self.workspaceExporter = workspaceExporter
         workspaceGuideImporter = DefaultWorkspaceGuideImporter()
-        permissionManager = StubPermissionManager()
+        permissionManager = SystemPermissionManager()
         keychainStore = StubKeychainStore()
+        makeTranscriptionService = { DefaultTranscriptionService() }
         guideRepository = SwiftDataGuideRepository(
             modelContainer: modelContainer,
             workspaceExporter: workspaceExporter
@@ -28,3 +30,5 @@ public final class Sprint1AppEnvironment {
         sessionRepository = SwiftDataSessionRepository(modelContainer: modelContainer)
     }
 }
+
+public typealias Sprint1AppEnvironment = AppEnvironment

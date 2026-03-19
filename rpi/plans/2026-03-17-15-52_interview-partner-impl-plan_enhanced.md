@@ -244,43 +244,49 @@ Sprint 0 proved the audio pipeline works. Now build the structure everything els
 > **⚠️ Longest sprint, highest risk.** Budget extra time. The FluidAudio ↔ SwiftUI wiring and the `ScriptPanelView` state interactions are the two hardest pieces in the entire v1 build.
 
 **Session setup sheet**
-- [ ] Sheet over `SessionListView`: guide picker (list of guides), optional participant label text field
-- [ ] "Start Interview" button → creates `Session` via `SessionRepository`, snapshots guide, presents `ActiveSessionView` as full-screen modal
+- [x] Sheet over `SessionListView`: guide picker (list of guides), optional participant label text field
+- [x] "Start Interview" button → creates `Session` via `SessionRepository`, snapshots guide, presents `ActiveSessionView` as full-screen modal
 
 **TranscriptionService** (in `InterviewPartnerServices`)
-- [ ] Move FluidAudio integration from Sprint 0 spike into `TranscriptionService` — this is the permanent home
-- [ ] `AVAudioEngine` + `AVAudioSession` setup (`.record`, `.allowBluetooth`)
-- [ ] `setPartialCallback` → publishes `partialText: String` to `SessionCoordinator`
-- [ ] `setEouCallback` → publishes finalized `TranscriptTurn` text plus inferred turn timing metadata; do **not** assume native speaker IDs exist on the ASR callback
-- [ ] Run a separate diarization path alongside streaming ASR (current spike direction: `SortformerDiarizer`) and expose provisional speaker labels plus the underlying speaker timeline to `SessionCoordinator`
-- [ ] Gap detection: if gap between EOU events exceeds threshold (e.g. 10s with no audio), emit `TranscriptGap` with start/end timestamps
-- [ ] `start()` / `stop()` methods
-- [ ] Fallback: if init fails, activate `SFSpeechRecognizer` (on-device), set `diarizationAvailable = false`
+- [x] Move FluidAudio integration from Sprint 0 spike into `TranscriptionService` — this is the permanent home
+- [x] `AVAudioEngine` + `AVAudioSession` setup (`.record`, `.allowBluetooth`)
+- [x] `setPartialCallback` → publishes `partialText: String` to `SessionCoordinator`
+- [x] `setEouCallback` → publishes finalized `TranscriptTurn` text plus inferred turn timing metadata; do **not** assume native speaker IDs exist on the ASR callback
+- [x] Run a separate diarization path alongside streaming ASR (current spike direction: `SortformerDiarizer`) and expose provisional speaker labels plus the underlying speaker timeline to `SessionCoordinator`
+- [x] Gap detection: if gap between EOU events exceeds threshold (e.g. 10s with no audio), emit `TranscriptGap` with start/end timestamps
+- [x] `start()` / `stop()` methods
+- [x] Fallback: if init fails, activate `SFSpeechRecognizer` (on-device), set `diarizationAvailable = false`
 
 **SessionCoordinator (`@MainActor @Observable`, in `InterviewPartnerFeatures`)**
-- [ ] Owns `TranscriptionService`, transcript array, gaps array, `partialTurn`, `questionStatuses`, `adHocNotes`, `elapsedSeconds`
-- [ ] **Incremental persistence:** each `TranscriptTurn`, `TranscriptGap`, `QuestionStatus` change, and `AdHocNote` written immediately via `SessionRepository` — not batched at session end
-- [ ] `Timer.publish` for elapsed time (pauses on app background)
-- [ ] Persist live speaker labels as **provisional** during the active session; ambiguous turns remain `Unclear` instead of forcing a confident label
+- [x] Owns `TranscriptionService`, transcript array, gaps array, `partialTurn`, `questionStatuses`, `adHocNotes`, `elapsedSeconds`
+- [x] **Incremental persistence:** each `TranscriptTurn`, `TranscriptGap`, `QuestionStatus` change, and `AdHocNote` written immediately via `SessionRepository` — not batched at session end
+- [x] `Timer.publish` for elapsed time (pauses on app background)
+- [x] Persist live speaker labels as **provisional** during the active session; ambiguous turns remain `Unclear` instead of forcing a confident label
 - [ ] `endSession()`: stops transcription, finalizes the full diarization timeline, runs a post-pass reconciliation over transcript turns before export/persistence becomes durable, finalizes `Session` via `SessionRepository`, creates `ExportQueueEntry`, triggers immediate export attempt
 
+> **Sprint 2 scope note (March 18, 2026):** `endSession()` now stops transcription, reconciles speaker labels, and finalizes the `Session` locally. Per user clarification, `ExportQueueEntry` creation and immediate export attempts remain deferred to Sprint 3.
+
 **ActiveSessionView layout**
-- [ ] `SessionHeaderView`: participant label, elapsed timer, "End" button with confirmation dialog
-- [ ] `TranscriptView`: scrolling list of `TranscriptTurn`s and `TranscriptGap` markers, auto-scrolls to latest, Speaker A left-aligned / Speaker B right-aligned, color-coded, partial turn shown in-progress at bottom; gap markers rendered as `[transcription unavailable HH:MM–HH:MM]` in muted style
-- [ ] Live speaker chips/labels visually communicate that in-session attribution is provisional (for example, subdued styling, confidence hint, or explicit "live" treatment)
-- [ ] "Limited transcription mode" banner if `diarizationAvailable = false`
+- [x] `SessionHeaderView`: participant label, elapsed timer, "End" button with confirmation dialog
+- [x] `TranscriptView`: scrolling list of `TranscriptTurn`s and `TranscriptGap` markers, auto-scrolls to latest, Speaker A left-aligned / Speaker B right-aligned, color-coded, partial turn shown in-progress at bottom; gap markers rendered as `[transcription unavailable HH:MM–HH:MM]` in muted style
+- [x] Live speaker chips/labels visually communicate that in-session attribution is provisional (for example, subdued styling, confidence hint, or explicit "live" treatment)
+- [x] "Limited transcription mode" banner if `diarizationAvailable = false`
 
 > **Sprint 2 diarization direction:** Keep live labels because they materially improve in-session readability, but treat them as provisional. The durable session record should come from a post-session reconciliation pass over the completed diarization timeline, not from the first live overlap guess alone.
 
 **ScriptPanelView (bottom sheet)**
-- [ ] Collapsible bottom sheet with three snap states: collapsed / default / expanded
+- [x] Collapsible bottom sheet with three snap states: collapsed / default / expanded
 - [ ] Header shows "3 of 4 Must Cover · Xm left"
-- [ ] Questions grouped by priority (Must Cover → Should Cover → Nice to Have), each with status badge
-- [ ] Tap cycles: Not Started → Partial → Answered; each tap persists immediately via `SessionRepository`
-- [ ] Long-press marks Skipped, with undo toast (3 seconds)
-- [ ] Answered questions dim and float to bottom of group; Skipped show muted strikethrough
-- [ ] Ad hoc note button (`+`): one-line overlay with timestamp, saves `AdHocNote` via `SessionRepository` without navigating away
-- [ ] Panic button (`⊞`): full-screen question list with all status badges
+- [x] Questions grouped by priority (Must Cover → Should Cover → Nice to Have), each with status badge
+- [x] Tap cycles: Not Started → Partial → Answered; each tap persists immediately via `SessionRepository`
+- [x] Long-press marks Skipped, with undo toast (3 seconds)
+- [x] Answered questions dim and float to bottom of group; Skipped show muted strikethrough
+- [x] Ad hoc note button (`+`): one-line overlay with timestamp, saves `AdHocNote` via `SessionRepository` without navigating away
+- [x] Panic button (`⊞`): full-screen question list with all status badges
+
+> **Sprint 2 UX note (March 18, 2026):** The script header currently shows Must Cover progress plus elapsed time (`Xm elapsed`). Countdown / `Xm left` remains tied to the later target-duration work.
+
+> **Verification note (March 18, 2026):** `xcodebuildmcp simulator build --workspace-path /Users/mistercheese/.codex/worktrees/00ae/interview-partner/InterviewPartner.xcworkspace --scheme InterviewPartner --simulator-name "iPhone 15" --derived-data-path /Users/mistercheese/.codex/worktrees/00ae/interview-partner/.build/xcodebuildmcp-derived` and `xcodebuildmcp simulator build-and-run --workspace-path /Users/mistercheese/.codex/worktrees/00ae/interview-partner/InterviewPartner.xcworkspace --scheme InterviewPartner --simulator-name "iPhone 15" --derived-data-path /Users/mistercheese/.codex/worktrees/00ae/interview-partner/.build/xcodebuildmcp-derived` both succeeded. Manual simulator validation on March 18, 2026 confirmed the session setup sheet presents with a saved guide, the active session screen launches, question status taps update, and the quick-note overlay appears in-session after microphone permission was granted.
 
 > **Exit criterion:** Start a session with a guide. Speak for 5 minutes. Manually mark 2 questions Answered, 1 Partial, 1 Skipped. Add one ad hoc note. End the session. Find it in session history. Live labels can still be wrong during capture, but the session must complete with readable provisional attribution and a post-stop reconciliation pass.
 
