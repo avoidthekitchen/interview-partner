@@ -26,7 +26,7 @@ struct PrivacyDisclosureSheet: View {
 
                     disclosureCard(
                         title: "On-device only",
-                        body: "Live audio capture, transcription, and speaker separation stay on this device in Sprint 4."
+                        body: "Live audio capture, transcription, speaker separation, and final speaker reconciliation stay on this device."
                     )
 
                     disclosureCard(
@@ -36,7 +36,7 @@ struct PrivacyDisclosureSheet: View {
 
                     disclosureCard(
                         title: "What is stored",
-                        body: "The app stores transcript text, question coverage, and notes locally so your session can survive interruptions and export reliably."
+                        body: "The app stores transcript text, question coverage, and notes locally. A temporary local audio file may exist only until on-device finalization completes, then it is deleted by default."
                     )
                 }
                 .padding()

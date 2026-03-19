@@ -5,44 +5,6 @@ import InterviewPartnerDomain
 import OSLog
 import Speech
 
-public struct DiarizedSegment: Identifiable, Hashable, Sendable {
-    public let id: UUID
-    public let speakerIndex: Int
-    public let startTimeSeconds: TimeInterval
-    public let endTimeSeconds: TimeInterval
-    public let isFinal: Bool
-
-    public init(
-        id: UUID = UUID(),
-        speakerIndex: Int,
-        startTimeSeconds: TimeInterval,
-        endTimeSeconds: TimeInterval,
-        isFinal: Bool
-    ) {
-        self.id = id
-        self.speakerIndex = speakerIndex
-        self.startTimeSeconds = startTimeSeconds
-        self.endTimeSeconds = endTimeSeconds
-        self.isFinal = isFinal
-    }
-}
-
-public struct DiarizationSnapshot: Hashable, Sendable {
-    public let totalAudioSeconds: Double
-    public let segments: [DiarizedSegment]
-    public let attributedSpeakerCount: Int
-
-    public init(
-        totalAudioSeconds: Double,
-        segments: [DiarizedSegment],
-        attributedSpeakerCount: Int
-    ) {
-        self.totalAudioSeconds = totalAudioSeconds
-        self.segments = segments
-        self.attributedSpeakerCount = attributedSpeakerCount
-    }
-}
-
 public enum TranscriptionServiceEvent: Sendable {
     case partialText(String)
     case finalizedTurn(TranscriptTurn)
@@ -106,31 +68,51 @@ public final class DefaultTranscriptionService: TranscriptionService {
     private let audioEngine = AVAudioEngine()
     private let asrManager: StreamingEouAsrManager
     private let diarizationEngine: LiveDiarizationEngine
+    private let vadEngine = StreamingVadEngine()
     private let speechFallback = SpeechFallbackTranscriptionEngine()
+    private let sessionAudioCapture = SessionAudioCapture()
+    private let offlineReconciler: OfflineDiarizationReconciler
+    private let tuning: DiarizationTuning
 
     private var hasLoadedModels = false
     private var callbacksConfigured = false
     private var eventHandler: (@Sendable (TranscriptionServiceEvent) -> Void)?
     private var sessionID: UUID?
     private var startedAt: Date?
-    private var lastCommittedTranscript = ""
+    private var deltaAccumulator = TranscriptDeltaAccumulator()
+    private var vadBoundaryTracker = VadBoundaryTracker()
     private var liveTurns: [TranscriptTurn] = []
     private var liveGaps: [TranscriptGap] = []
     private var lastTurnEndTimeSeconds: TimeInterval?
     private var usingSpeechFallback = false
     private var diarizationAvailable = true
+    private var vadAvailable = true
     private var limitedModeMessage: String?
+    private var audioTapWorkTracker = AudioTapWorkTracker()
+    private var partialCallbackCount = 0
+    private var eouCallbackCount = 0
+    private var finalizedTurnCount = 0
+    private var vadEventCount = 0
 
     public init(
         chunkSize: StreamingChunkSize = .ms160,
-        diarizationConfig: SortformerConfig = .default
+        diarizationConfig: SortformerConfig = .default,
+        tuning: DiarizationTuning = .productionDefault
     ) {
         self.chunkSize = chunkSize
+        self.tuning = DiarizationTuning(
+            name: tuning.name,
+            sortformerConfig: diarizationConfig,
+            sortformerPostProcessing: tuning.sortformerPostProcessing,
+            minimumDominantOverlapSeconds: tuning.minimumDominantOverlapSeconds,
+            dominantSpeakerRatioThreshold: tuning.dominantSpeakerRatioThreshold
+        )
         asrManager = StreamingEouAsrManager(
             chunkSize: chunkSize,
             eouDebounceMs: Constants.eouDebounceMs
         )
-        diarizationEngine = LiveDiarizationEngine(config: diarizationConfig)
+        diarizationEngine = LiveDiarizationEngine(tuning: self.tuning)
+        offlineReconciler = OfflineDiarizationReconciler(tuning: self.tuning)
     }
 
     public func setEventHandler(_ handler: @escaping @Sendable (TranscriptionServiceEvent) -> Void) {
@@ -140,13 +122,21 @@ public final class DefaultTranscriptionService: TranscriptionService {
     public func start(sessionID: UUID, startedAt: Date) async throws {
         self.sessionID = sessionID
         self.startedAt = startedAt
-        lastCommittedTranscript = ""
+        deltaAccumulator.reset()
+        vadBoundaryTracker.reset()
         liveTurns.removeAll()
         liveGaps.removeAll()
         lastTurnEndTimeSeconds = nil
         usingSpeechFallback = false
         diarizationAvailable = true
+        vadAvailable = true
         limitedModeMessage = nil
+        audioTapWorkTracker = AudioTapWorkTracker()
+        partialCallbackCount = 0
+        eouCallbackCount = 0
+        finalizedTurnCount = 0
+        vadEventCount = 0
+        try? await sessionAudioCapture.cleanup()
 
         try await configureCallbacksIfNeeded()
 
@@ -160,6 +150,33 @@ public final class DefaultTranscriptionService: TranscriptionService {
 
     public func stop() async -> TranscriptionStopResult {
         stopAudioEngine()
+        let trackerSnapshotBeforeDrain = audioTapWorkTracker.snapshot()
+        logger.info(
+            """
+            Stopping transcription session. Partial callbacks: \(self.partialCallbackCount, privacy: .public), \
+            EOU callbacks: \(self.eouCallbackCount, privacy: .public), \
+            finalized turns: \(self.finalizedTurnCount, privacy: .public), \
+            VAD events: \(self.vadEventCount, privacy: .public), \
+            audio buffers enqueued: \(trackerSnapshotBeforeDrain.enqueuedBuffers, privacy: .public), \
+            completed: \(trackerSnapshotBeforeDrain.completedBuffers, privacy: .public), \
+            pending: \(trackerSnapshotBeforeDrain.pendingBuffers, privacy: .public)
+            """
+        )
+        await audioTapWorkTracker.waitUntilIdle()
+        let trackerSnapshotAfterDrain = audioTapWorkTracker.snapshot()
+        logger.info(
+            """
+            Audio tap drained before finalization. Buffers enqueued: \(trackerSnapshotAfterDrain.enqueuedBuffers, privacy: .public), \
+            completed: \(trackerSnapshotAfterDrain.completedBuffers, privacy: .public), \
+            pending: \(trackerSnapshotAfterDrain.pendingBuffers, privacy: .public)
+            """
+        )
+        let tempAudioURL = await sessionAudioCapture.stop()
+        defer {
+            Task {
+                try? await sessionAudioCapture.cleanup()
+            }
+        }
 
         if usingSpeechFallback {
             await speechFallback.stop()
@@ -179,6 +196,9 @@ public final class DefaultTranscriptionService: TranscriptionService {
 
         do {
             let transcript = try await asrManager.finish()
+            logger.info(
+                "ASR finish returned transcript with \(transcript.count, privacy: .public) characters"
+            )
             await appendIfNeeded(fromCumulativeTranscript: transcript)
             await asrManager.reset()
         } catch {
@@ -189,10 +209,25 @@ public final class DefaultTranscriptionService: TranscriptionService {
         let reconciledTurns: [TranscriptTurn]
         if diarizationAvailable {
             snapshot = await diarizationEngine.finalizeAndSnapshot()
-            reconciledTurns = reconcileTurns(snapshot: snapshot, turns: liveTurns)
+            let liveReconciledTurns = LiveTurnAssembler.reconcileTurns(
+                snapshot: snapshot,
+                turns: liveTurns,
+                tuning: tuning
+            )
+            let offlineResult = await offlineReconciler.reconcile(
+                turns: liveTurns,
+                audioURL: tempAudioURL
+            )
+            reconciledTurns = offlineResult.usedOfflineDiarization
+                ? offlineResult.turns
+                : liveReconciledTurns
         } else {
             snapshot = nil
-            reconciledTurns = liveTurns.map {
+            let offlineResult = await offlineReconciler.reconcile(
+                turns: liveTurns,
+                audioURL: tempAudioURL
+            )
+            reconciledTurns = offlineResult.usedOfflineDiarization ? offlineResult.turns : liveTurns.map {
                 var turn = $0
                 turn.speakerLabel = "Speaker A"
                 turn.speakerLabelIsProvisional = false
@@ -217,6 +252,7 @@ public final class DefaultTranscriptionService: TranscriptionService {
         try await loadModelsIfNeeded()
         await asrManager.reset()
         await diarizationEngine.reset()
+        await vadEngine.reset()
 
         do {
             try await diarizationEngine.prepareIfNeeded()
@@ -227,6 +263,14 @@ public final class DefaultTranscriptionService: TranscriptionService {
             limitedModeMessage = "Limited transcription mode: FluidAudio transcription is active, but live speaker diarization is unavailable."
         }
 
+        do {
+            try await vadEngine.prepareIfNeeded()
+            vadAvailable = true
+        } catch {
+            vadAvailable = false
+            logger.error("Streaming VAD unavailable: \(error.localizedDescription, privacy: .public)")
+        }
+
         emit(
             .limitedModeChanged(
                 isLimited: !diarizationAvailable,
@@ -235,7 +279,7 @@ public final class DefaultTranscriptionService: TranscriptionService {
         )
 
         try configureAudioSession()
-        try startAudioEngine(withDiarization: diarizationAvailable)
+        try await startAudioEngine(withDiarization: diarizationAvailable)
     }
 
     private func startSpeechFallbackSession() async throws {
@@ -291,11 +335,14 @@ public final class DefaultTranscriptionService: TranscriptionService {
         #endif
     }
 
-    private func startAudioEngine(withDiarization: Bool) throws {
+    private func startAudioEngine(withDiarization: Bool) async throws {
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
         let asrManager = self.asrManager
         let diarizationEngine = self.diarizationEngine
+        guard let sessionID else { return }
+
+        try await sessionAudioCapture.start(sessionID: sessionID, format: format)
 
         inputNode.removeTap(onBus: 0)
         inputNode.installTap(
@@ -304,7 +351,15 @@ public final class DefaultTranscriptionService: TranscriptionService {
             format: format,
             block: AudioTapBridge.makeBlock(
                 asrManager: asrManager,
-                diarizationEngine: withDiarization ? diarizationEngine : nil
+                diarizationEngine: withDiarization ? diarizationEngine : nil,
+                vadEngine: vadAvailable ? vadEngine : nil,
+                sessionAudioCapture: sessionAudioCapture,
+                workTracker: audioTapWorkTracker,
+                onVadEvent: { [weak self] event in
+                    Task { @MainActor [weak self] in
+                        self?.handleVadBoundaryEvent(event)
+                    }
+                }
             )
         )
 
@@ -321,66 +376,86 @@ public final class DefaultTranscriptionService: TranscriptionService {
     }
 
     private func handlePartialTranscript(_ transcript: String) {
-        emit(.partialText(deltaText(fromCumulativeTranscript: transcript)))
+        partialCallbackCount += 1
+        let delta = deltaAccumulator.deltaText(from: transcript)
+        if partialCallbackCount == 1 || partialCallbackCount.isMultiple(of: 25) {
+            logger.debug(
+                "Received partial callback #\(self.partialCallbackCount, privacy: .public). Transcript chars: \(transcript.count, privacy: .public), delta chars: \(delta.count, privacy: .public)"
+            )
+        }
+        emit(.partialText(delta))
     }
 
     private func appendIfNeeded(fromCumulativeTranscript transcript: String) async {
-        let newText = deltaText(fromCumulativeTranscript: transcript)
+        eouCallbackCount += 1
+        let newText = deltaAccumulator.commit(transcript)
         let trimmedText = newText.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        lastCommittedTranscript = transcript
         emit(.partialText(""))
 
         guard
             let sessionID,
             let startedAt,
             !trimmedText.isEmpty
-        else { return }
+        else {
+            logger.debug(
+                "Ignoring empty EOU callback #\(self.eouCallbackCount, privacy: .public). Transcript chars: \(transcript.count, privacy: .public), delta chars: \(newText.count, privacy: .public)"
+            )
+            return
+        }
 
-        let attribution: DiarizationTurnAttribution
-        if diarizationAvailable {
-            attribution = await diarizationEngine.attributeNextTurn(
+        let window: UtteranceWindow
+        if vadAvailable {
+            let result = vadBoundaryTracker.consumeBestWindow(
+                audioDurationSeconds: await currentAudioDurationSeconds(startedAt: startedAt),
+                previousBoundarySeconds: lastTurnEndTimeSeconds ?? 0,
                 eouDebounceMs: Constants.eouDebounceMs
             )
+            window = result.window
+            if result.missedSpeechEnd {
+                logger.debug(
+                    "EOU finalization arrived without a matching VAD speechEnd at \(window.endSeconds, privacy: .public)s"
+                )
+            }
         } else {
-            let now = Date.now
-            let elapsed = now.timeIntervalSince(startedAt)
-            attribution = DiarizationTurnAttribution(
-                speakerIndex: nil,
-                speakerLabel: "Speaker A",
-                estimatedStartTimeSeconds: lastTurnEndTimeSeconds ?? max(0, elapsed - 1),
-                estimatedEndTimeSeconds: elapsed,
-                confidence: 0,
-                note: "Fallback transcription does not provide diarization."
+            window = VadBoundaryTracker.fallbackWindow(
+                previousBoundarySeconds: lastTurnEndTimeSeconds ?? 0,
+                audioDurationSeconds: await currentAudioDurationSeconds(startedAt: startedAt),
+                eouDebounceMs: Constants.eouDebounceMs
             )
         }
 
-        if let priorTurnEnd = lastTurnEndTimeSeconds,
-           attribution.estimatedStartTimeSeconds - priorTurnEnd >= Constants.gapThresholdSeconds {
-            let gap = TranscriptGap(
-                sessionID: sessionID,
-                startTimestamp: startedAt.addingTimeInterval(priorTurnEnd),
-                endTimestamp: startedAt.addingTimeInterval(attribution.estimatedStartTimeSeconds),
-                reason: .transcriptionUnavailable
-            )
+        let diarizationSegments = diarizationAvailable
+            ? await diarizationEngine.currentSnapshot().segments
+            : []
+        let assembly = LiveTurnAssembler.assembleTurn(
+            sessionID: sessionID,
+            startedAt: startedAt,
+            previousTurnEndTimeSeconds: lastTurnEndTimeSeconds,
+            text: trimmedText,
+            diarizationAvailable: diarizationAvailable,
+            window: window,
+            diarizationSegments: diarizationSegments,
+            gapThresholdSeconds: Constants.gapThresholdSeconds,
+            tuning: tuning
+        )
+
+        if let gap = assembly.gap {
             liveGaps.append(gap)
             emit(.transcriptGap(gap))
         }
 
-        let turn = TranscriptTurn(
-            speakerLabel: attribution.speakerLabel,
-            text: trimmedText,
-            timestamp: startedAt.addingTimeInterval(attribution.estimatedEndTimeSeconds),
-            isFinal: true,
-            startTimeSeconds: attribution.estimatedStartTimeSeconds,
-            endTimeSeconds: attribution.estimatedEndTimeSeconds,
-            speakerMatchConfidence: diarizationAvailable ? attribution.confidence : nil,
-            speakerLabelIsProvisional: diarizationAvailable
+        liveTurns.append(assembly.turn)
+        lastTurnEndTimeSeconds = assembly.turn.endTimeSeconds
+        finalizedTurnCount += 1
+        logger.info(
+            """
+            Finalized turn #\(self.finalizedTurnCount, privacy: .public) from EOU callback #\(self.eouCallbackCount, privacy: .public). \
+            Window: \(assembly.turn.startTimeSeconds ?? -1, privacy: .public)s -> \(assembly.turn.endTimeSeconds ?? -1, privacy: .public)s, \
+            text chars: \(trimmedText.count, privacy: .public), speaker: \(assembly.turn.speakerLabel, privacy: .public)
+            """
         )
-        liveTurns.append(turn)
-        lastTurnEndTimeSeconds = attribution.estimatedEndTimeSeconds
 
-        emit(.finalizedTurn(turn))
+        emit(.finalizedTurn(assembly.turn))
         if diarizationAvailable {
             emit(.diarizationSnapshot(await diarizationEngine.currentSnapshot()))
         }
@@ -397,40 +472,22 @@ public final class DefaultTranscriptionService: TranscriptionService {
         }
     }
 
-    private func reconcileTurns(
-        snapshot: DiarizationSnapshot?,
-        turns: [TranscriptTurn]
-    ) -> [TranscriptTurn] {
-        guard let snapshot else {
-            return turns
-        }
-
-        var previousBoundary: TimeInterval = 0
-        return turns.map { turn in
-            let start = turn.startTimeSeconds ?? previousBoundary
-            let end = max(turn.endTimeSeconds ?? start, start)
-            let attribution = DominantSpeakerMatcher.attributeTurn(
-                segments: snapshot.segments.filter(\.isFinal),
-                windowStart: start,
-                windowEnd: end,
-                speakerLabel: defaultSpeakerLabel(for:)
-            )
-            previousBoundary = end
-
-            var reconciled = turn
-            reconciled.speakerLabel = attribution.speakerLabel
-            reconciled.speakerMatchConfidence = attribution.confidence
-            reconciled.speakerLabelIsProvisional = false
-            return reconciled
-        }
+    private func handleVadBoundaryEvent(_ event: VadBoundaryEvent) {
+        vadEventCount += 1
+        logger.debug(
+            "VAD event #\(self.vadEventCount, privacy: .public): \(String(describing: event.kind), privacy: .public) at \(event.timeSeconds, privacy: .public)s"
+        )
+        vadBoundaryTracker.ingest(event: event)
     }
 
-    private func deltaText(fromCumulativeTranscript transcript: String) -> String {
-        guard transcript.hasPrefix(lastCommittedTranscript) else {
-            return transcript
+    private func currentAudioDurationSeconds(startedAt: Date) async -> Double {
+        if vadAvailable {
+            return max(await vadEngine.currentAudioDurationSeconds(), Date.now.timeIntervalSince(startedAt))
         }
-
-        return String(transcript.dropFirst(lastCommittedTranscript.count))
+        if diarizationAvailable {
+            return max(await diarizationEngine.currentSnapshot().totalAudioSeconds, Date.now.timeIntervalSince(startedAt))
+        }
+        return Date.now.timeIntervalSince(startedAt)
     }
 
     private func emit(_ event: TranscriptionServiceEvent) {
@@ -475,100 +532,6 @@ public final class DefaultTranscriptionService: TranscriptionService {
 
         try await DownloadUtils.downloadRepo(repo, to: modelsRoot)
     }
-
-}
-
-private struct DiarizationTurnAttribution: Hashable, Sendable {
-    let speakerIndex: Int?
-    let speakerLabel: String
-    let estimatedStartTimeSeconds: TimeInterval
-    let estimatedEndTimeSeconds: TimeInterval
-    let confidence: Double
-    let note: String
-}
-
-private enum DominantSpeakerMatcher {
-    static func attributeNextTurn(
-        segments: [DiarizedSegment],
-        previousBoundarySeconds: TimeInterval,
-        audioDurationSeconds: TimeInterval,
-        eouDebounceMs: Int,
-        speakerLabel: (Int) -> String
-    ) -> DiarizationTurnAttribution {
-        let estimatedEnd = max(
-            previousBoundarySeconds,
-            audioDurationSeconds - (Double(eouDebounceMs) / 1000.0)
-        )
-        return attributeTurn(
-            segments: segments,
-            windowStart: previousBoundarySeconds,
-            windowEnd: estimatedEnd,
-            speakerLabel: speakerLabel
-        )
-    }
-
-    static func attributeTurn(
-        segments: [DiarizedSegment],
-        windowStart: TimeInterval,
-        windowEnd: TimeInterval,
-        speakerLabel: (Int) -> String
-    ) -> DiarizationTurnAttribution {
-        let sanitizedEnd = max(windowEnd, windowStart)
-        let windowDuration = max(sanitizedEnd - windowStart, 0.001)
-
-        var overlapBySpeaker: [Int: Double] = [:]
-        for segment in segments {
-            let overlap = max(
-                0,
-                min(segment.endTimeSeconds, sanitizedEnd) - max(segment.startTimeSeconds, windowStart)
-            )
-
-            guard overlap > 0 else { continue }
-            overlapBySpeaker[segment.speakerIndex, default: 0] += overlap
-        }
-
-        let rankedSpeakers = overlapBySpeaker.sorted { lhs, rhs in
-            if lhs.value == rhs.value {
-                return lhs.key < rhs.key
-            }
-            return lhs.value > rhs.value
-        }
-
-        guard let topSpeaker = rankedSpeakers.first else {
-            return DiarizationTurnAttribution(
-                speakerIndex: nil,
-                speakerLabel: "Unclear",
-                estimatedStartTimeSeconds: windowStart,
-                estimatedEndTimeSeconds: sanitizedEnd,
-                confidence: 0,
-                note: "No diarization segment overlapped the turn window."
-            )
-        }
-
-        let secondOverlap = rankedSpeakers.dropFirst().first?.value ?? 0
-        let dominantOverlap = topSpeaker.value
-        let confidence = min(1.0, dominantOverlap / windowDuration)
-
-        if dominantOverlap < 0.25 || (secondOverlap > 0 && dominantOverlap / secondOverlap < 1.25) {
-            return DiarizationTurnAttribution(
-                speakerIndex: nil,
-                speakerLabel: "Unclear",
-                estimatedStartTimeSeconds: windowStart,
-                estimatedEndTimeSeconds: sanitizedEnd,
-                confidence: confidence,
-                note: "Competing diarization segments overlap this turn window."
-            )
-        }
-
-        return DiarizationTurnAttribution(
-            speakerIndex: topSpeaker.key,
-            speakerLabel: speakerLabel(topSpeaker.key),
-            estimatedStartTimeSeconds: windowStart,
-            estimatedEndTimeSeconds: sanitizedEnd,
-            confidence: confidence,
-            note: "Mapped from dominant diarization overlap within the turn window."
-        )
-    }
 }
 
 private actor LiveDiarizationEngine {
@@ -577,11 +540,12 @@ private actor LiveDiarizationEngine {
 
     private var hasLoadedModels = false
     private var totalSamples = 0
-    private var lastAssignedBoundarySeconds: TimeInterval = 0
-    private var speakerLabelsByIndex: [Int: String] = [:]
 
-    init(config: SortformerConfig = .default) {
-        diarizer = SortformerDiarizer(config: config, postProcessingConfig: .default)
+    init(tuning: DiarizationTuning = .productionDefault) {
+        diarizer = SortformerDiarizer(
+            config: tuning.sortformerConfig,
+            postProcessingConfig: tuning.sortformerPostProcessing
+        )
     }
 
     func prepareIfNeeded() async throws {
@@ -595,8 +559,6 @@ private actor LiveDiarizationEngine {
     func reset() {
         diarizer.reset()
         totalSamples = 0
-        lastAssignedBoundarySeconds = 0
-        speakerLabelsByIndex.removeAll()
     }
 
     func ingest(_ buffer: AVAudioPCMBuffer) throws {
@@ -612,31 +574,6 @@ private actor LiveDiarizationEngine {
 
     func currentSnapshot() -> DiarizationSnapshot {
         snapshot(includeTentative: true)
-    }
-
-    func attributeNextTurn(eouDebounceMs: Int) -> DiarizationTurnAttribution {
-        let currentSnapshot = snapshot(includeTentative: true)
-        let attribution = DominantSpeakerMatcher.attributeNextTurn(
-            segments: currentSnapshot.segments,
-            previousBoundarySeconds: lastAssignedBoundarySeconds,
-            audioDurationSeconds: currentSnapshot.totalAudioSeconds,
-            eouDebounceMs: eouDebounceMs,
-            speakerLabel: speakerLabel(for:)
-        )
-
-        lastAssignedBoundarySeconds = attribution.estimatedEndTimeSeconds
-        return attribution
-    }
-
-    func speakerLabel(for speakerIndex: Int) -> String {
-        if let existingLabel = speakerLabelsByIndex[speakerIndex] {
-            return existingLabel
-        }
-
-        let label = defaultSpeakerLabel(for: speakerLabelsByIndex.count)
-
-        speakerLabelsByIndex[speakerIndex] = label
-        return label
     }
 
     private func snapshot(includeTentative: Bool) -> DiarizationSnapshot {
@@ -802,17 +739,32 @@ private enum AudioTapBridge {
 
     nonisolated static func makeBlock(
         asrManager: StreamingEouAsrManager,
-        diarizationEngine: LiveDiarizationEngine?
+        diarizationEngine: LiveDiarizationEngine?,
+        vadEngine: StreamingVadEngine?,
+        sessionAudioCapture: SessionAudioCapture,
+        workTracker: AudioTapWorkTracker,
+        onVadEvent: @escaping @Sendable (VadBoundaryEvent) -> Void
     ) -> AVAudioNodeTapBlock {
         { buffer, _ in
             guard let bufferBox = buffer.deepCopy().map(SendablePCMBufferBox.init) else { return }
+            workTracker.begin()
 
             Task {
+                defer {
+                    workTracker.end()
+                }
                 do {
+                    _ = try await asrManager.process(audioBuffer: bufferBox.buffer)
+                    try await sessionAudioCapture.append(bufferBox.buffer)
                     if let diarizationEngine {
                         try await diarizationEngine.ingest(bufferBox.buffer)
                     }
-                    _ = try await asrManager.process(audioBuffer: bufferBox.buffer)
+                    if let vadEngine {
+                        let events = try await vadEngine.ingest(bufferBox.buffer)
+                        for event in events {
+                            onVadEvent(event)
+                        }
+                    }
                 } catch {
                     logger.error(
                         "Audio processing failed: \(error.localizedDescription, privacy: .public)"
@@ -831,17 +783,50 @@ private final class SendablePCMBufferBox: @unchecked Sendable {
     }
 }
 
-private func defaultSpeakerLabel(for speakerIndex: Int) -> String {
-    switch speakerIndex {
-    case 0:
-        return "Speaker A"
-    case 1:
-        return "Speaker B"
-    case 2:
-        return "Speaker C"
-    case 3:
-        return "Speaker D"
-    default:
-        return "Speaker \(speakerIndex + 1)"
+struct AudioTapWorkTrackerSnapshot: Sendable {
+    let enqueuedBuffers: Int
+    let completedBuffers: Int
+
+    var pendingBuffers: Int {
+        enqueuedBuffers - completedBuffers
+    }
+}
+
+final class AudioTapWorkTracker: @unchecked Sendable {
+    private let group = DispatchGroup()
+    private let lock = NSLock()
+    private var enqueuedBuffers = 0
+    private var completedBuffers = 0
+
+    func begin() {
+        lock.lock()
+        enqueuedBuffers += 1
+        lock.unlock()
+        group.enter()
+    }
+
+    func end() {
+        lock.lock()
+        completedBuffers += 1
+        lock.unlock()
+        group.leave()
+    }
+
+    func snapshot() -> AudioTapWorkTrackerSnapshot {
+        lock.lock()
+        defer { lock.unlock() }
+        return AudioTapWorkTrackerSnapshot(
+            enqueuedBuffers: enqueuedBuffers,
+            completedBuffers: completedBuffers
+        )
+    }
+
+    func waitUntilIdle() async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async { [group] in
+                group.wait()
+                continuation.resume()
+            }
+        }
     }
 }

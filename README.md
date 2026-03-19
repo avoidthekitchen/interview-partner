@@ -21,7 +21,7 @@ The repository currently ships **Sprint 4 - Polish for First Real Use**.
 
 - Guide management is available in-app, with SwiftData-backed persistence and workspace import/export plumbing
 - Session setup, active interview capture, live transcript display, question tracking, ad hoc notes, and session history are implemented
-- Live transcription is powered by FluidAudio's `StreamingEouAsrManager`, with Sortformer-based diarization for provisional speaker labels and a Speech fallback path when FluidAudio is unavailable
+- Live transcription now keeps `StreamingEouAsrManager` for text finalization, uses streaming VAD for utterance windows, and applies offline diarization reconciliation before final transcript persistence/export
 - Finalized transcript turns, gaps, question statuses, and notes are persisted incrementally through SwiftData during the session
 - Completed sessions now open into a dedicated review flow with transcript edits, session-wide speaker relabeling, coverage review, markdown preview, and share-sheet export
 - Session export writes `.md` and `.json` files to temporary storage immediately and retries workspace exports through a lightweight pending-export queue when bookmark access is unavailable
@@ -118,6 +118,12 @@ Most development happens under `Packages/`:
 - The first transcription start may download or load FluidAudio models into Application Support, so expect a longer startup
 - If diarization or FluidAudio startup fails, the app can fall back to Speech-based transcription with reduced capability
 - Pause briefly between sentences so the end-of-utterance detector can finalize a turn
+- During session finalization, the app may retain a short-lived local audio file long enough to run the on-device offline diarization pass, then it deletes that file by default
+
+### Transcription Benchmark
+- After each transcription phase, run `swift run --package-path Packages/InterviewPartnerServices InterviewPartnerTranscriptionEvalCLI --fixture-set baseline --variant production_current --output rpi/evals/mobile_transcription/latest.json --compare-baseline /absolute/path/to/rpi/evals/mobile_transcription/baseline_metrics.json`
+- The checked-in baseline lives at `rpi/evals/mobile_transcription/baseline_metrics.json`
+- Comparison artifacts for tuned variants live under `rpi/evals/mobile_transcription/variant_results/`
 
 ### What Sprint 4 Proves Today
 - Sessions can be created from a persisted guide and returned to history when finalized

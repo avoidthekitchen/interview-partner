@@ -1,0 +1,5 @@
+{
+  "selected_variant": "production_current",
+  "decision_date": "2026-03-19",
+  "rationale": "Keep the current production tuning. The pinned_tuned replay variant did not improve boundary, speaker, or runtime metrics on the checked-in corpus, and no separate dependency-bump result was selected."
+}

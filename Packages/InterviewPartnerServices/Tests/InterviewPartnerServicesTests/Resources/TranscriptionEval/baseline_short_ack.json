@@ -1,0 +1,55 @@
+{
+  "fixture_id": "baseline_short_ack",
+  "fixture_set": "baseline",
+  "description": "Short acknowledgement should finalize as its own turn instead of inheriting the prior debounce window.",
+  "audio_file_name": "two_speaker_pause.wav",
+  "frames": [
+    {
+      "elapsed_seconds": 0.12,
+      "cumulative_transcript": "Okay",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.12, "is_final": false }
+      ],
+      "vad_event": { "kind": "speechStart", "time_seconds": 0.0 },
+      "eou_detected": false
+    },
+    {
+      "elapsed_seconds": 0.95,
+      "cumulative_transcript": "Okay",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.18, "is_final": true }
+      ],
+      "vad_event": { "kind": "speechEnd", "time_seconds": 0.18 },
+      "eou_detected": true
+    },
+    {
+      "elapsed_seconds": 1.05,
+      "cumulative_transcript": "Okay yeah",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.18, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.69, "end_time_seconds": 0.72, "is_final": false }
+      ],
+      "vad_event": { "kind": "speechStart", "time_seconds": 0.62 },
+      "eou_detected": false
+    },
+    {
+      "elapsed_seconds": 1.55,
+      "cumulative_transcript": "Okay yeah",
+      "diarization_segments": [
+        { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.18, "is_final": true },
+        { "speaker_index": 1, "start_time_seconds": 0.69, "end_time_seconds": 0.72, "is_final": true }
+      ],
+      "vad_event": { "kind": "speechEnd", "time_seconds": 0.78 },
+      "eou_detected": true
+    }
+  ],
+  "expected_turns": [
+    { "text": "Okay", "speaker_label": "Speaker A", "start_seconds": 0.0, "end_seconds": 0.18 },
+    { "text": "yeah", "speaker_label": "Speaker B", "start_seconds": 0.62, "end_seconds": 0.78 }
+  ],
+  "offline_diarization_segments": [
+    { "speaker_index": 0, "start_time_seconds": 0.0, "end_time_seconds": 0.18, "is_final": true },
+    { "speaker_index": 1, "start_time_seconds": 0.62, "end_time_seconds": 0.78, "is_final": true }
+  ],
+  "offline_runtime_seconds": 0.22
+}

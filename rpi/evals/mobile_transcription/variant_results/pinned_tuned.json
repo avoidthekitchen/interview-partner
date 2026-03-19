@@ -1,0 +1,58 @@
+{
+  "fixture_set" : "baseline",
+  "fixtures" : [
+    {
+      "description" : "Short acknowledgement should finalize as its own turn instead of inheriting the prior debounce window.",
+      "fixture_id" : "baseline_short_ack",
+      "metrics" : {
+        "final_speaker_accuracy" : 1,
+        "late_finalization_p95_ms" : 770,
+        "live_speaker_accuracy" : 0.5,
+        "missing_speech_end_count" : 0,
+        "offline_runtime_rtf" : 0.14193548387096774,
+        "split_merge_error_count" : 0,
+        "turn_boundary_mae_ms" : 0,
+        "unclear_rate" : 0
+      },
+      "notes" : [
+        "Live speaker label mismatch detected."
+      ]
+    },
+    {
+      "description" : "Overlapping handoff should prefer tighter VAD windows and offline final labels over a broad debounce estimate.",
+      "fixture_id" : "overlap_repair",
+      "metrics" : {
+        "final_speaker_accuracy" : 1,
+        "late_finalization_p95_ms" : 600.0000000000001,
+        "live_speaker_accuracy" : 1,
+        "missing_speech_end_count" : 0,
+        "offline_runtime_rtf" : 0.19374999999999998,
+        "split_merge_error_count" : 0,
+        "turn_boundary_mae_ms" : 0,
+        "unclear_rate" : 0
+      },
+      "notes" : [
+
+      ]
+    },
+    {
+      "description" : "Revised earlier tokens and a long intra-speaker pause should not duplicate the entire transcript or blur the second turn window.",
+      "fixture_id" : "revision_long_pause",
+      "metrics" : {
+        "final_speaker_accuracy" : 1,
+        "late_finalization_p95_ms" : 799.9999999999998,
+        "live_speaker_accuracy" : 1,
+        "missing_speech_end_count" : 0,
+        "offline_runtime_rtf" : 0.09310344827586207,
+        "split_merge_error_count" : 0,
+        "turn_boundary_mae_ms" : 0,
+        "unclear_rate" : 0
+      },
+      "notes" : [
+
+      ]
+    }
+  ],
+  "generated_at" : "2026-03-19T22:00:46Z",
+  "variant" : "pinned_tuned"
+}

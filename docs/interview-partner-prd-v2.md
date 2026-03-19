@@ -185,7 +185,7 @@ All audio capture, transcription, and speaker diarization happen on-device using
 **Requirements:**
 - App functions fully without internet connectivity — transcription is not degraded offline
 - Privacy disclosure shown at first launch: "Audio is processed on your device and never uploaded without your permission"
-- No audio files are retained after session ends unless user explicitly opts in; the transcript text is the persistent artifact
+- A short-lived local audio file may be retained only until the on-device finalization pass completes, then it is deleted by default unless a future explicit opt-in feature says otherwise; the transcript text remains the persistent artifact
 - Transcription and diarization begin simultaneously when session starts — no separate pipeline steps visible to the user
 
 **Primary Stack: FluidAudio**
