@@ -1,0 +1,8 @@
+{
+  "results" : {
+    "test-audio-clip" : {
+      "diarizationAccuracy" : 60.63829787234043,
+      "werAccuracy" : 82.91457286432161
+    }
+  }
+}
