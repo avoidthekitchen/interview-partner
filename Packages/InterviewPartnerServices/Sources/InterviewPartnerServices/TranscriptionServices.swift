@@ -103,7 +103,7 @@ public final class DefaultTranscriptionService: TranscriptionService {
         category: "DefaultTranscriptionService"
     )
     private let chunkSize: StreamingChunkSize
-    private let audioEngine = AVAudioEngine()
+    private let audioProvider: any AudioSampleProvider
     private let asrManager: StreamingEouAsrManager
     private let diarizationEngine: LiveDiarizationEngine
     private let speechFallback = SpeechFallbackTranscriptionEngine()
@@ -122,9 +122,11 @@ public final class DefaultTranscriptionService: TranscriptionService {
     private var limitedModeMessage: String?
 
     public init(
+        audioProvider: some AudioSampleProvider = MicrophoneAudioProvider(),
         chunkSize: StreamingChunkSize = .ms160,
         diarizationConfig: SortformerConfig = .default
     ) {
+        self.audioProvider = audioProvider
         self.chunkSize = chunkSize
         asrManager = StreamingEouAsrManager(
             chunkSize: chunkSize,
@@ -159,7 +161,7 @@ public final class DefaultTranscriptionService: TranscriptionService {
     }
 
     public func stop() async -> TranscriptionStopResult {
-        stopAudioEngine()
+        audioProvider.stop()
 
         if usingSpeechFallback {
             await speechFallback.stop()
@@ -234,8 +236,14 @@ public final class DefaultTranscriptionService: TranscriptionService {
             )
         )
 
-        try configureAudioSession()
-        try startAudioEngine(withDiarization: diarizationAvailable)
+        let asrManager = self.asrManager
+        let diarizationEngine = self.diarizationAvailable ? self.diarizationEngine : nil
+        try audioProvider.start(
+            handler: AudioTapBridge.makeHandler(
+                asrManager: asrManager,
+                diarizationEngine: diarizationEngine
+            )
+        )
     }
 
     private func startSpeechFallbackSession() async throws {
@@ -245,11 +253,13 @@ public final class DefaultTranscriptionService: TranscriptionService {
 
         emit(.limitedModeChanged(isLimited: true, message: limitedModeMessage))
 
-        try configureAudioSession()
-        let inputNode = audioEngine.inputNode
-        let format = inputNode.outputFormat(forBus: 0)
+        guard let micProvider = audioProvider as? MicrophoneAudioProvider else {
+            throw TranscriptionServiceError.speechRecognizerUnavailable
+        }
 
-        try await speechFallback.start(audioEngine: audioEngine, format: format) { [weak self] event in
+        let format = micProvider.audioFormat
+
+        try await speechFallback.start(audioProvider: micProvider, format: format) { [weak self] event in
             Task { @MainActor [weak self] in
                 self?.handleSpeechFallbackEvent(event)
             }
@@ -281,43 +291,6 @@ public final class DefaultTranscriptionService: TranscriptionService {
         try await Self.downloadModelsIfNeeded(to: modelDirectory, chunkSize: chunkSize)
         try await asrManager.loadModels(modelDir: modelDirectory)
         hasLoadedModels = true
-    }
-
-    private func configureAudioSession() throws {
-        #if os(iOS)
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .default, options: [.allowBluetoothHFP])
-        try session.setActive(true)
-        #endif
-    }
-
-    private func startAudioEngine(withDiarization: Bool) throws {
-        let inputNode = audioEngine.inputNode
-        let format = inputNode.outputFormat(forBus: 0)
-        let asrManager = self.asrManager
-        let diarizationEngine = self.diarizationEngine
-
-        inputNode.removeTap(onBus: 0)
-        inputNode.installTap(
-            onBus: 0,
-            bufferSize: 2048,
-            format: format,
-            block: AudioTapBridge.makeBlock(
-                asrManager: asrManager,
-                diarizationEngine: withDiarization ? diarizationEngine : nil
-            )
-        )
-
-        audioEngine.prepare()
-        try audioEngine.start()
-    }
-
-    private func stopAudioEngine() {
-        audioEngine.inputNode.removeTap(onBus: 0)
-        audioEngine.stop()
-        #if os(iOS)
-        try? AVAudioSession.sharedInstance().setActive(false)
-        #endif
     }
 
     private func handlePartialTranscript(_ transcript: String) {
@@ -695,7 +668,7 @@ private final class SpeechFallbackTranscriptionEngine {
     private var handler: (@Sendable (SpeechFallbackEvent) -> Void)?
 
     func start(
-        audioEngine: AVAudioEngine,
+        audioProvider: MicrophoneAudioProvider,
         format: AVAudioFormat,
         handler: @escaping @Sendable (SpeechFallbackEvent) -> Void
     ) async throws {
@@ -718,6 +691,7 @@ private final class SpeechFallbackTranscriptionEngine {
         request.shouldReportPartialResults = true
         self.request = request
 
+        let audioEngine = audioProvider.engine
         let inputNode = audioEngine.inputNode
         inputNode.removeTap(onBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 2048, format: format) { [weak self] buffer, _ in
@@ -800,11 +774,11 @@ private enum AudioTapBridge {
         category: "AudioTap"
     )
 
-    nonisolated static func makeBlock(
+    nonisolated static func makeHandler(
         asrManager: StreamingEouAsrManager,
         diarizationEngine: LiveDiarizationEngine?
-    ) -> AVAudioNodeTapBlock {
-        { buffer, _ in
+    ) -> @Sendable (AVAudioPCMBuffer) -> Void {
+        { buffer in
             guard let bufferBox = buffer.deepCopy().map(SendablePCMBufferBox.init) else { return }
 
             Task {

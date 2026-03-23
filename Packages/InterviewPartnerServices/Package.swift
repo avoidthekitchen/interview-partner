@@ -17,6 +17,7 @@ let package = Package(
     dependencies: [
         .package(path: "../InterviewPartnerDomain"),
         .package(path: "../InterviewPartnerData"),
+        .package(path: "../InterviewPartnerBenchmark"),
         .package(url: "https://github.com/FluidInference/FluidAudio.git", revision: "9830ce835881c0d0d40f90aabfaae3a6da5bebfb"),
     ],
     targets: [
@@ -26,6 +27,13 @@ let package = Package(
                 "InterviewPartnerDomain",
                 "InterviewPartnerData",
                 .product(name: "FluidAudio", package: "FluidAudio"),
+            ]
+        ),
+        .testTarget(
+            name: "InterviewPartnerServicesTests",
+            dependencies: [
+                "InterviewPartnerServices",
+                "InterviewPartnerBenchmark",
             ]
         ),
     ]
