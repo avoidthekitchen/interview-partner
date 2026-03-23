@@ -1,0 +1,3 @@
+- tests-data/test-audio-clip.mov has a 1 minute 13 second long audio clip of a podcast
+- tests-data/test-transcription-clip.txt has the transcription of the audio clip
+- when running evaluation benchmark tests, only look at the tests-data/test-audio-clip.mov to transcribe, and only look at tests-data/test-transcription-clip.txt when scoring the output
