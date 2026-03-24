@@ -378,6 +378,14 @@ public final class DefaultTranscriptionService: TranscriptionService {
             return turns
         }
 
+        // If we have multiple diarization speakers but few turns, split the turns
+        let uniqueSpeakers = Set(snapshot.segments.map(\.speakerIndex))
+        if uniqueSpeakers.count > 1 && turns.count == 1, let singleTurn = turns.first {
+            // Split the single turn by speaker boundaries
+            return splitTurnBySpeakers(turn: singleTurn, segments: snapshot.segments.filter(\.isFinal))
+        }
+
+        // Original reconciliation for normal cases
         var previousBoundary: TimeInterval = 0
         return turns.map { turn in
             let start = turn.startTimeSeconds ?? previousBoundary
@@ -396,6 +404,84 @@ public final class DefaultTranscriptionService: TranscriptionService {
             reconciled.speakerLabelIsProvisional = false
             return reconciled
         }
+    }
+
+    /// Splits a single turn into multiple turns based on speaker changes in diarization segments
+    private func splitTurnBySpeakers(turn: TranscriptTurn, segments: [DiarizedSegment]) -> [TranscriptTurn] {
+        guard let turnStart = turn.startTimeSeconds,
+              let turnEnd = turn.endTimeSeconds,
+              !segments.isEmpty else {
+            return [turn]
+        }
+
+        // Filter segments that overlap with this turn
+        let overlappingSegments = segments.filter { segment in
+            segment.endTimeSeconds > turnStart && segment.startTimeSeconds < turnEnd
+        }.sorted { $0.startTimeSeconds < $1.startTimeSeconds }
+
+        guard overlappingSegments.count > 1 else {
+            return [turn]
+        }
+
+        // Group consecutive segments by speaker
+        var speakerBlocks: [(speakerIndex: Int, start: TimeInterval, end: TimeInterval)] = []
+        for segment in overlappingSegments {
+            if let last = speakerBlocks.last, last.speakerIndex == segment.speakerIndex {
+                // Extend the last block
+                speakerBlocks[speakerBlocks.count - 1].end = max(last.end, segment.endTimeSeconds)
+            } else {
+                speakerBlocks.append((segment.speakerIndex, segment.startTimeSeconds, segment.endTimeSeconds))
+            }
+        }
+
+        // Split the turn text proportionally by duration
+        let words = turn.text.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+        let totalDuration = turnEnd - turnStart
+        guard totalDuration > 0 else { return [turn] }
+
+        var newTurns: [TranscriptTurn] = []
+        var wordIndex = 0
+
+        for block in speakerBlocks {
+            let blockDuration = block.end - block.start
+            let blockProportion = blockDuration / totalDuration
+            let wordCountForBlock = Int(Double(words.count) * blockProportion)
+
+            // Ensure at least one word per block, but don't exceed available words
+            let actualWordCount = max(1, min(wordCountForBlock, words.count - wordIndex))
+            let blockWords = words[wordIndex..<min(wordIndex + actualWordCount, words.count)]
+            wordIndex += actualWordCount
+
+            guard !blockWords.isEmpty else { continue }
+
+            let blockText = blockWords.joined(separator: " ")
+            let speakerLabel = defaultSpeakerLabel(for: block.speakerIndex)
+
+            // Calculate timestamp for this block
+            let blockMidTime = (block.start + block.end) / 2
+            let timestamp = turn.timestamp.addingTimeInterval(blockMidTime - turnEnd)
+
+            newTurns.append(TranscriptTurn(
+                speakerLabel: speakerLabel,
+                text: blockText,
+                timestamp: timestamp,
+                isFinal: true,
+                startTimeSeconds: max(block.start, turnStart),
+                endTimeSeconds: min(block.end, turnEnd),
+                speakerMatchConfidence: 1.0, // High confidence since we're using diarization
+                speakerLabelIsProvisional: false
+            ))
+        }
+
+        // Distribute any remaining words to the last turn
+        if wordIndex < words.count && !newTurns.isEmpty {
+            let remainingWords = words[wordIndex...].joined(separator: " ")
+            var lastTurn = newTurns.removeLast()
+            lastTurn.text += " " + remainingWords
+            newTurns.append(lastTurn)
+        }
+
+        return newTurns.isEmpty ? [turn] : newTurns
     }
 
     private func deltaText(fromCumulativeTranscript transcript: String) -> String {
