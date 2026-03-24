@@ -39,6 +39,32 @@ struct TestCaseDiscoveryTests {
         #expect(testCase.metadata.description == "A test clip")
     }
 
+    @Test("Discovers test case with audio.m4a when audio.mov is absent")
+    func discoversTestCaseWithM4aAudio() throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("TestCaseDiscoveryTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let caseDir = tempDir.appendingPathComponent("noisy-case")
+        try FileManager.default.createDirectory(at: caseDir, withIntermediateDirectories: true)
+        try Data().write(to: caseDir.appendingPathComponent("audio.m4a"))
+        try "Hello world".data(using: .utf8)!
+            .write(to: caseDir.appendingPathComponent("transcript.txt"))
+
+        let metadata = TestCaseMetadata(duration: 38, speakerCount: 1, description: "Noisy clip")
+        let metadataData = try JSONEncoder().encode(metadata)
+        try metadataData.write(to: caseDir.appendingPathComponent("metadata.json"))
+
+        let discovery = TestCaseDiscovery()
+        let testCases = try discovery.discover(in: tempDir)
+
+        #expect(testCases.count == 1)
+        let testCase = try #require(testCases.first)
+        #expect(testCase.name == "noisy-case")
+        #expect(testCase.audioPath.standardizedFileURL == caseDir.appendingPathComponent("audio.m4a").standardizedFileURL)
+    }
+
     @Test("Skips directories missing required files")
     func skipsIncompleteDirectories() throws {
         let tempDir = FileManager.default.temporaryDirectory

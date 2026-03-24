@@ -104,6 +104,7 @@ public final class DefaultTranscriptionService: TranscriptionService {
     )
     private let chunkSize: StreamingChunkSize
     private let audioProvider: any AudioSampleProvider
+    private let preprocessor: AudioPreprocessor?
     private let asrManager: StreamingEouAsrManager
     private let diarizationEngine: LiveDiarizationEngine
     private let speechFallback = SpeechFallbackTranscriptionEngine()
@@ -124,9 +125,11 @@ public final class DefaultTranscriptionService: TranscriptionService {
     public init(
         audioProvider: some AudioSampleProvider = MicrophoneAudioProvider(),
         chunkSize: StreamingChunkSize = .ms160,
-        diarizationConfig: SortformerConfig = .default
+        diarizationConfig: SortformerConfig = .default,
+        preprocessor: AudioPreprocessor? = nil
     ) {
         self.audioProvider = audioProvider
+        self.preprocessor = preprocessor
         self.chunkSize = chunkSize
         asrManager = StreamingEouAsrManager(
             chunkSize: chunkSize,
@@ -241,7 +244,8 @@ public final class DefaultTranscriptionService: TranscriptionService {
         try audioProvider.start(
             handler: AudioTapBridge.makeHandler(
                 asrManager: asrManager,
-                diarizationEngine: diarizationEngine
+                diarizationEngine: diarizationEngine,
+                preprocessor: preprocessor
             )
         )
     }
@@ -378,6 +382,14 @@ public final class DefaultTranscriptionService: TranscriptionService {
             return turns
         }
 
+        // If we have multiple diarization speakers but few turns, split the turns
+        let uniqueSpeakers = Set(snapshot.segments.map(\.speakerIndex))
+        if uniqueSpeakers.count > 1 && turns.count == 1, let singleTurn = turns.first {
+            // Split the single turn by speaker boundaries
+            return splitTurnBySpeakers(turn: singleTurn, segments: snapshot.segments.filter(\.isFinal))
+        }
+
+        // Original reconciliation for normal cases
         var previousBoundary: TimeInterval = 0
         return turns.map { turn in
             let start = turn.startTimeSeconds ?? previousBoundary
@@ -396,6 +408,84 @@ public final class DefaultTranscriptionService: TranscriptionService {
             reconciled.speakerLabelIsProvisional = false
             return reconciled
         }
+    }
+
+    /// Splits a single turn into multiple turns based on speaker changes in diarization segments
+    private func splitTurnBySpeakers(turn: TranscriptTurn, segments: [DiarizedSegment]) -> [TranscriptTurn] {
+        guard let turnStart = turn.startTimeSeconds,
+              let turnEnd = turn.endTimeSeconds,
+              !segments.isEmpty else {
+            return [turn]
+        }
+
+        // Filter segments that overlap with this turn
+        let overlappingSegments = segments.filter { segment in
+            segment.endTimeSeconds > turnStart && segment.startTimeSeconds < turnEnd
+        }.sorted { $0.startTimeSeconds < $1.startTimeSeconds }
+
+        guard overlappingSegments.count > 1 else {
+            return [turn]
+        }
+
+        // Group consecutive segments by speaker
+        var speakerBlocks: [(speakerIndex: Int, start: TimeInterval, end: TimeInterval)] = []
+        for segment in overlappingSegments {
+            if let last = speakerBlocks.last, last.speakerIndex == segment.speakerIndex {
+                // Extend the last block
+                speakerBlocks[speakerBlocks.count - 1].end = max(last.end, segment.endTimeSeconds)
+            } else {
+                speakerBlocks.append((segment.speakerIndex, segment.startTimeSeconds, segment.endTimeSeconds))
+            }
+        }
+
+        // Split the turn text proportionally by duration
+        let words = turn.text.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+        let totalDuration = turnEnd - turnStart
+        guard totalDuration > 0 else { return [turn] }
+
+        var newTurns: [TranscriptTurn] = []
+        var wordIndex = 0
+
+        for block in speakerBlocks {
+            let blockDuration = block.end - block.start
+            let blockProportion = blockDuration / totalDuration
+            let wordCountForBlock = Int(Double(words.count) * blockProportion)
+
+            // Don't exceed remaining available words (no minimum — tiny segments get 0 words)
+            let actualWordCount = max(0, min(wordCountForBlock, words.count - wordIndex))
+            let blockWords = words[wordIndex..<min(wordIndex + actualWordCount, words.count)]
+            wordIndex += actualWordCount
+
+            guard !blockWords.isEmpty else { continue }
+
+            let blockText = blockWords.joined(separator: " ")
+            let speakerLabel = defaultSpeakerLabel(for: block.speakerIndex)
+
+            // Calculate timestamp for this block
+            let blockMidTime = (block.start + block.end) / 2
+            let timestamp = turn.timestamp.addingTimeInterval(blockMidTime - turnEnd)
+
+            newTurns.append(TranscriptTurn(
+                speakerLabel: speakerLabel,
+                text: blockText,
+                timestamp: timestamp,
+                isFinal: true,
+                startTimeSeconds: max(block.start, turnStart),
+                endTimeSeconds: min(block.end, turnEnd),
+                speakerMatchConfidence: 1.0, // High confidence since we're using diarization
+                speakerLabelIsProvisional: false
+            ))
+        }
+
+        // Distribute any remaining words to the last turn
+        if wordIndex < words.count && !newTurns.isEmpty {
+            let remainingWords = words[wordIndex...].joined(separator: " ")
+            var lastTurn = newTurns.removeLast()
+            lastTurn.text += " " + remainingWords
+            newTurns.append(lastTurn)
+        }
+
+        return newTurns.isEmpty ? [turn] : newTurns
     }
 
     private func deltaText(fromCumulativeTranscript transcript: String) -> String {
@@ -522,7 +612,7 @@ private enum DominantSpeakerMatcher {
         let dominantOverlap = topSpeaker.value
         let confidence = min(1.0, dominantOverlap / windowDuration)
 
-        if dominantOverlap < 0.25 || (secondOverlap > 0 && dominantOverlap / secondOverlap < 1.25) {
+        if dominantOverlap < 0.15 || (secondOverlap > 0 && dominantOverlap / secondOverlap < 1.1) {
             return DiarizationTurnAttribution(
                 speakerIndex: nil,
                 speakerLabel: "Unclear",
@@ -545,13 +635,23 @@ private enum DominantSpeakerMatcher {
 }
 
 private actor LiveDiarizationEngine {
+    private let logger = Logger(
+        subsystem: "com.mistercheese.InterviewPartner",
+        category: "LiveDiarizationEngine"
+    )
     private let audioConverter = AudioConverter()
     private let diarizer: SortformerDiarizer
+
+    // Diagnostic logging to stderr for benchmark visibility
+    private func logDiagnostic(_ message: String) {
+        FileHandle.standardError.write("[DIARIZATION] \(message)\n".data(using: .utf8)!)
+    }
 
     private var hasLoadedModels = false
     private var totalSamples = 0
     private var lastAssignedBoundarySeconds: TimeInterval = 0
     private var speakerLabelsByIndex: [Int: String] = [:]
+    private var segmentHistory: [DiarizedSegment] = []
 
     init(config: SortformerConfig = .default) {
         diarizer = SortformerDiarizer(config: config, postProcessingConfig: .default)
@@ -580,7 +680,25 @@ private actor LiveDiarizationEngine {
 
     func finalizeAndSnapshot() -> DiarizationSnapshot {
         diarizer.timeline.finalize()
-        return snapshot(includeTentative: false)
+        let snapshot = snapshot(includeTentative: false)
+
+        // DIAGNOSTIC LOGGING
+        logDiagnostic("📊 Final Snapshot: \(snapshot.segments.count) segments, \(snapshot.attributedSpeakerCount) speakers")
+        logDiagnostic("  Audio duration: \(snapshot.totalAudioSeconds)s")
+
+        // Log segment distribution by speaker
+        var segmentsBySpeaker: [Int: Int] = [:]
+        for segment in snapshot.segments {
+            segmentsBySpeaker[segment.speakerIndex, default: 0] += 1
+        }
+        for (speakerIndex, count) in segmentsBySpeaker.sorted(by: { $0.key < $1.key }) {
+            let totalDuration = snapshot.segments
+                .filter { $0.speakerIndex == speakerIndex }
+                .reduce(0) { $0 + ($1.endTimeSeconds - $1.startTimeSeconds) }
+            logDiagnostic("  Speaker \(speakerIndex): \(count) segments, \(totalDuration)s total")
+        }
+
+        return snapshot
     }
 
     func currentSnapshot() -> DiarizationSnapshot {
@@ -589,6 +707,20 @@ private actor LiveDiarizationEngine {
 
     func attributeNextTurn(eouDebounceMs: Int) -> DiarizationTurnAttribution {
         let currentSnapshot = snapshot(includeTentative: true)
+
+        // DIAGNOSTIC LOGGING
+        logDiagnostic("📊 Attribution Request: boundary=\(self.lastAssignedBoundarySeconds)s, duration=\(currentSnapshot.totalAudioSeconds)s")
+        logDiagnostic("  Total segments: \(currentSnapshot.segments.count), Unique speakers: \(currentSnapshot.attributedSpeakerCount)")
+
+        // Log all segments in the window
+        let windowSegments = currentSnapshot.segments.filter { segment in
+            segment.endTimeSeconds > self.lastAssignedBoundarySeconds
+        }
+        logDiagnostic("  Active segments in window: \(windowSegments.count)")
+        for segment in windowSegments {
+            logDiagnostic("    Segment: Speaker \(segment.speakerIndex), \(segment.startTimeSeconds)s-\(segment.endTimeSeconds)s (final=\(segment.isFinal))")
+        }
+
         let attribution = DominantSpeakerMatcher.attributeNextTurn(
             segments: currentSnapshot.segments,
             previousBoundarySeconds: lastAssignedBoundarySeconds,
@@ -596,6 +728,8 @@ private actor LiveDiarizationEngine {
             eouDebounceMs: eouDebounceMs,
             speakerLabel: speakerLabel(for:)
         )
+
+        logDiagnostic("  Result: \(attribution.speakerLabel) (index: \(attribution.speakerIndex.map(String.init) ?? "nil"), confidence: \(attribution.confidence))")
 
         lastAssignedBoundarySeconds = attribution.estimatedEndTimeSeconds
         return attribution
@@ -776,10 +910,19 @@ private enum AudioTapBridge {
 
     nonisolated static func makeHandler(
         asrManager: StreamingEouAsrManager,
-        diarizationEngine: LiveDiarizationEngine?
+        diarizationEngine: LiveDiarizationEngine?,
+        preprocessor: AudioPreprocessor? = nil
     ) -> @Sendable (AVAudioPCMBuffer) -> Void {
         { buffer in
-            guard let bufferBox = buffer.deepCopy().map(SendablePCMBufferBox.init) else { return }
+            // Apply preprocessing if available
+            let processedBuffer: AVAudioPCMBuffer
+            if let preprocessor {
+                processedBuffer = preprocessor.processCopy(buffer)
+            } else {
+                processedBuffer = buffer
+            }
+
+            guard let bufferBox = processedBuffer.deepCopy().map(SendablePCMBufferBox.init) else { return }
 
             Task {
                 do {

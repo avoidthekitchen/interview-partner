@@ -9,7 +9,7 @@ public struct TestCaseDiscovery: Sendable {
     /// Scans the given directory for test case subdirectories.
     ///
     /// Each valid test case directory must contain:
-    /// - `audio.mov` (the audio file)
+    /// - `audio.mov` or `audio.m4a` (the audio file)
     /// - `transcript.txt` (the reference transcript)
     /// - `metadata.json` (test case metadata)
     ///
@@ -32,11 +32,13 @@ public struct TestCaseDiscovery: Sendable {
             let resourceValues = try itemURL.resourceValues(forKeys: [.isDirectoryKey])
             guard resourceValues.isDirectory == true else { continue }
 
-            let audioPath = itemURL.appendingPathComponent("audio.mov")
+            let audioPath = ["audio.mov", "audio.m4a"]
+                .map { itemURL.appendingPathComponent($0) }
+                .first { fileManager.fileExists(atPath: $0.path) }
             let transcriptPath = itemURL.appendingPathComponent("transcript.txt")
             let metadataPath = itemURL.appendingPathComponent("metadata.json")
 
-            guard fileManager.fileExists(atPath: audioPath.path),
+            guard let audioPath,
                   fileManager.fileExists(atPath: transcriptPath.path),
                   fileManager.fileExists(atPath: metadataPath.path) else {
                 continue
