@@ -552,6 +552,11 @@ private actor LiveDiarizationEngine {
     private let audioConverter = AudioConverter()
     private let diarizer: SortformerDiarizer
 
+    // Diagnostic logging to stderr for benchmark visibility
+    private func logDiagnostic(_ message: String) {
+        FileHandle.standardError.write("[DIARIZATION] \(message)\n".data(using: .utf8)!)
+    }
+
     private var hasLoadedModels = false
     private var totalSamples = 0
     private var lastAssignedBoundarySeconds: TimeInterval = 0
@@ -588,10 +593,8 @@ private actor LiveDiarizationEngine {
         let snapshot = snapshot(includeTentative: false)
 
         // DIAGNOSTIC LOGGING
-        logger.info("📊 Final Diarization Snapshot:")
-        logger.info("  - Total segments: \(snapshot.segments.count)")
-        logger.info("  - Unique speakers: \(snapshot.attributedSpeakerCount)")
-        logger.info("  - Audio duration: \(snapshot.totalAudioSeconds, privacy: .public)s")
+        logDiagnostic("📊 Final Snapshot: \(snapshot.segments.count) segments, \(snapshot.attributedSpeakerCount) speakers")
+        logDiagnostic("  Audio duration: \(snapshot.totalAudioSeconds)s")
 
         // Log segment distribution by speaker
         var segmentsBySpeaker: [Int: Int] = [:]
@@ -602,7 +605,7 @@ private actor LiveDiarizationEngine {
             let totalDuration = snapshot.segments
                 .filter { $0.speakerIndex == speakerIndex }
                 .reduce(0) { $0 + ($1.endTimeSeconds - $1.startTimeSeconds) }
-            logger.info("  - Speaker \(speakerIndex): \(count) segments, \(totalDuration, privacy: .public)s total")
+            logDiagnostic("  Speaker \(speakerIndex): \(count) segments, \(totalDuration)s total")
         }
 
         return snapshot
@@ -616,19 +619,16 @@ private actor LiveDiarizationEngine {
         let currentSnapshot = snapshot(includeTentative: true)
 
         // DIAGNOSTIC LOGGING
-        logger.info("📊 Diarization Attribution Request:")
-        logger.info("  - Previous boundary: \(self.lastAssignedBoundarySeconds, privacy: .public)s")
-        logger.info("  - Audio duration: \(currentSnapshot.totalAudioSeconds, privacy: .public)s")
-        logger.info("  - Total segments: \(currentSnapshot.segments.count)")
-        logger.info("  - Unique speakers: \(currentSnapshot.attributedSpeakerCount)")
+        logDiagnostic("📊 Attribution Request: boundary=\(self.lastAssignedBoundarySeconds)s, duration=\(currentSnapshot.totalAudioSeconds)s")
+        logDiagnostic("  Total segments: \(currentSnapshot.segments.count), Unique speakers: \(currentSnapshot.attributedSpeakerCount)")
 
         // Log all segments in the window
         let windowSegments = currentSnapshot.segments.filter { segment in
             segment.endTimeSeconds > self.lastAssignedBoundarySeconds
         }
-        logger.info("  - Active segments in window: \(windowSegments.count)")
+        logDiagnostic("  Active segments in window: \(windowSegments.count)")
         for segment in windowSegments {
-            logger.info("    Segment: Speaker \(segment.speakerIndex), \(segment.startTimeSeconds, privacy: .public)s-\(segment.endTimeSeconds, privacy: .public)s (final=\(segment.isFinal))")
+            logDiagnostic("    Segment: Speaker \(segment.speakerIndex), \(segment.startTimeSeconds)s-\(segment.endTimeSeconds)s (final=\(segment.isFinal))")
         }
 
         let attribution = DominantSpeakerMatcher.attributeNextTurn(
@@ -639,8 +639,7 @@ private actor LiveDiarizationEngine {
             speakerLabel: speakerLabel(for:)
         )
 
-        logger.info("  - Attribution result: \(attribution.speakerLabel) (index: \(attribution.speakerIndex.map(String.init) ?? "nil"), confidence: \(attribution.confidence, privacy: .public))")
-        logger.info("  - Note: \(attribution.note, privacy: .public)")
+        logDiagnostic("  Result: \(attribution.speakerLabel) (index: \(attribution.speakerIndex.map(String.init) ?? "nil"), confidence: \(attribution.confidence))")
 
         lastAssignedBoundarySeconds = attribution.estimatedEndTimeSeconds
         return attribution
