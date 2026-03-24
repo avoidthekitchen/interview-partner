@@ -63,7 +63,7 @@ private struct BenchmarkRunner {
             FileHandle.standardError.write("Running benchmark for: \(testCase.name)...\n")
 
             do {
-                let result = try await runBenchmark(for: testCase)
+                let result = try await runBenchmark(for: testCase, degradeLevel: config.acousticDegradeLevel)
                 results.append(result)
             } catch {
                 printError("Failed to run benchmark for \(testCase.name): \(error)")
@@ -115,6 +115,7 @@ private struct BenchmarkRunner {
         var updateBaseline = false
         var testDataPath: String?
         var baselinePath: String?
+        var acousticDegradeLevel: AcousticDegrader.Level?
     }
 
     private func parseArguments() -> CLIConfiguration {
@@ -151,6 +152,20 @@ private struct BenchmarkRunner {
                     exit(1)
                 }
 
+            case "--acoustic-degrade":
+                if index + 1 < arguments.count {
+                    let levelStr = arguments[index + 1]
+                    guard let level = AcousticDegrader.Level(rawValue: levelStr) else {
+                        printError("Invalid --acoustic-degrade level '\(levelStr)'. Valid: light, moderate, heavy")
+                        exit(1)
+                    }
+                    config.acousticDegradeLevel = level
+                    index += 2
+                } else {
+                    printError("Missing value for --acoustic-degrade")
+                    exit(1)
+                }
+
             case "--help", "-h":
                 printUsage()
                 exit(0)
@@ -170,11 +185,12 @@ private struct BenchmarkRunner {
         Usage: BenchmarkCLI [options]
 
         Options:
-          --json              Output results as JSON
-          --update-baseline   Update the baseline with current results
-          --test-data PATH    Path to test data directory (default: ../../tests/test-data)
-          --baseline PATH     Path to baseline JSON file
-          --help, -h          Show this help message
+          --json                         Output results as JSON
+          --update-baseline              Update the baseline with current results
+          --test-data PATH               Path to test data directory (default: ../../tests/test-data)
+          --baseline PATH                Path to baseline JSON file
+          --acoustic-degrade LEVEL       Degrade audio before transcription (light|moderate|heavy)
+          --help, -h                     Show this help message
 
         Exit codes:
           0  Success (no regression)
@@ -203,9 +219,15 @@ private struct BenchmarkRunner {
 
     // MARK: - Benchmark Execution
 
-    private func runBenchmark(for testCase: TestCase) async throws -> TestCaseResult {
+    private func runBenchmark(
+        for testCase: TestCase,
+        degradeLevel: AcousticDegrader.Level? = nil
+    ) async throws -> TestCaseResult {
         let replayer = FileAudioReplayer(fileURL: testCase.audioPath)
-        let service = DefaultTranscriptionService(audioProvider: replayer)
+        let audioProvider: any AudioSampleProvider = degradeLevel.map {
+            DegradedAudioProvider(replayer: replayer, degrader: AcousticDegrader(level: $0))
+        } ?? replayer
+        let service = DefaultTranscriptionService(audioProvider: audioProvider, preprocessor: AudioPreprocessor())
 
         // Collect events
         let collector = TranscriptionEventCollector()
@@ -227,7 +249,7 @@ private struct BenchmarkRunner {
 
         // Wait for replay to complete
         let replayDuration = Double(testCase.metadata.duration)
-        let waitSeconds = replayDuration + 5.0
+        let waitSeconds = replayDuration + 10.0
         try await Task.sleep(for: .seconds(waitSeconds))
 
         // Stop and get results
