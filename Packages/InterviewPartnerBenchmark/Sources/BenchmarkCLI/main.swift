@@ -292,10 +292,12 @@ private struct BenchmarkRunner {
             let result = comparison.result
             let baseline = comparison.comparison
 
+            let wer = result.werDetails
+            let dia = result.diarizationDetails
             print("Test Case: \(result.testCase.name)")
             print("  Duration: \(result.testCase.metadata.duration)s | Speakers: \(result.testCase.metadata.speakerCount)")
-            print("  WER Accuracy:         \(String(format: "%.2f", result.benchmarkResult.werAccuracy))%")
-            print("  Diarization Accuracy: \(String(format: "%.2f", result.benchmarkResult.diarizationAccuracy))%")
+            print("  WER Accuracy:         \(String(format: "%.2f", result.benchmarkResult.werAccuracy))%  (sub:\(wer.substitutions) ins:\(wer.insertions) del:\(wer.deletions))")
+            print("  Diarization Accuracy: \(String(format: "%.2f", result.benchmarkResult.diarizationAccuracy))%  (\(dia.correctWords)/\(dia.totalMatchedWords) words correct)")
 
             if let werDelta = baseline.werDelta {
                 let sign = werDelta >= 0 ? "+" : ""

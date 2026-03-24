@@ -104,6 +104,7 @@ public final class DefaultTranscriptionService: TranscriptionService {
     )
     private let chunkSize: StreamingChunkSize
     private let audioProvider: any AudioSampleProvider
+    private let preprocessor: AudioPreprocessor?
     private let asrManager: StreamingEouAsrManager
     private let diarizationEngine: LiveDiarizationEngine
     private let speechFallback = SpeechFallbackTranscriptionEngine()
@@ -124,9 +125,11 @@ public final class DefaultTranscriptionService: TranscriptionService {
     public init(
         audioProvider: some AudioSampleProvider = MicrophoneAudioProvider(),
         chunkSize: StreamingChunkSize = .ms160,
-        diarizationConfig: SortformerConfig = .default
+        diarizationConfig: SortformerConfig = .default,
+        preprocessor: AudioPreprocessor? = nil
     ) {
         self.audioProvider = audioProvider
+        self.preprocessor = preprocessor
         self.chunkSize = chunkSize
         asrManager = StreamingEouAsrManager(
             chunkSize: chunkSize,
@@ -241,7 +244,8 @@ public final class DefaultTranscriptionService: TranscriptionService {
         try audioProvider.start(
             handler: AudioTapBridge.makeHandler(
                 asrManager: asrManager,
-                diarizationEngine: diarizationEngine
+                diarizationEngine: diarizationEngine,
+                preprocessor: preprocessor
             )
         )
     }
@@ -447,8 +451,8 @@ public final class DefaultTranscriptionService: TranscriptionService {
             let blockProportion = blockDuration / totalDuration
             let wordCountForBlock = Int(Double(words.count) * blockProportion)
 
-            // Ensure at least one word per block, but don't exceed available words
-            let actualWordCount = max(1, min(wordCountForBlock, words.count - wordIndex))
+            // Don't exceed remaining available words (no minimum — tiny segments get 0 words)
+            let actualWordCount = max(0, min(wordCountForBlock, words.count - wordIndex))
             let blockWords = words[wordIndex..<min(wordIndex + actualWordCount, words.count)]
             wordIndex += actualWordCount
 
@@ -608,7 +612,7 @@ private enum DominantSpeakerMatcher {
         let dominantOverlap = topSpeaker.value
         let confidence = min(1.0, dominantOverlap / windowDuration)
 
-        if dominantOverlap < 0.25 || (secondOverlap > 0 && dominantOverlap / secondOverlap < 1.25) {
+        if dominantOverlap < 0.15 || (secondOverlap > 0 && dominantOverlap / secondOverlap < 1.1) {
             return DiarizationTurnAttribution(
                 speakerIndex: nil,
                 speakerLabel: "Unclear",

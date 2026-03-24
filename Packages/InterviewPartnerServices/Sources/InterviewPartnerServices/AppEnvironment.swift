@@ -22,7 +22,7 @@ public final class AppEnvironment {
         workspaceGuideImporter = DefaultWorkspaceGuideImporter()
         permissionManager = SystemPermissionManager()
         keychainStore = StubKeychainStore()
-        makeTranscriptionService = { DefaultTranscriptionService() }
+        makeTranscriptionService = { DefaultTranscriptionService(preprocessor: AudioPreprocessor()) }
         guideRepository = SwiftDataGuideRepository(
             modelContainer: modelContainer,
             workspaceExporter: workspaceExporter
