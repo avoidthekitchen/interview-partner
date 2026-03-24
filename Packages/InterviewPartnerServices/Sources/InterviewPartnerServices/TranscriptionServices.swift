@@ -906,10 +906,19 @@ private enum AudioTapBridge {
 
     nonisolated static func makeHandler(
         asrManager: StreamingEouAsrManager,
-        diarizationEngine: LiveDiarizationEngine?
+        diarizationEngine: LiveDiarizationEngine?,
+        preprocessor: AudioPreprocessor? = nil
     ) -> @Sendable (AVAudioPCMBuffer) -> Void {
         { buffer in
-            guard let bufferBox = buffer.deepCopy().map(SendablePCMBufferBox.init) else { return }
+            // Apply preprocessing if available
+            let processedBuffer: AVAudioPCMBuffer
+            if let preprocessor {
+                processedBuffer = preprocessor.processCopy(buffer)
+            } else {
+                processedBuffer = buffer
+            }
+
+            guard let bufferBox = processedBuffer.deepCopy().map(SendablePCMBufferBox.init) else { return }
 
             Task {
                 do {
