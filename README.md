@@ -21,7 +21,7 @@ The repository currently ships **Sprint 4 - Polish for First Real Use**.
 
 - Guide management is available in-app, with SwiftData-backed persistence and workspace import/export plumbing
 - Session setup, active interview capture, live transcript display, question tracking, ad hoc notes, and session history are implemented
-- Live transcription is powered by FluidAudio's `StreamingEouAsrManager`, with Sortformer-based diarization for provisional speaker labels and a Speech fallback path when FluidAudio is unavailable
+- Live transcription is powered by [FluidAudio's](https://github.com/FluidInference/FluidAudio) `StreamingEouAsrManager`, with Sortformer-based diarization for provisional speaker labels and a Speech fallback path when FluidAudio is unavailable
 - Finalized transcript turns, gaps, question statuses, and notes are persisted incrementally through SwiftData during the session
 - Completed sessions now open into a dedicated review flow with transcript edits, session-wide speaker relabeling, coverage review, markdown preview, and share-sheet export
 - Session export writes `.md` and `.json` files to temporary storage immediately and retries workspace exports through a lightweight pending-export queue when bookmark access is unavailable
@@ -194,3 +194,6 @@ To include assets in your feature package:
 
 ### Generated with XcodeBuildMCP
 This project was scaffolded using [XcodeBuildMCP](https://github.com/cameroncooke/XcodeBuildMCP), which provides tools for AI-assisted iOS development workflows.
+
+### Built with FluidAudio
+FluidInference Team. (2024). FluidAudio: Local Speaker Diarization, ASR, and VAD for Apple Platforms (Version 0.5.1) [Computer software]. https://github.com/FluidInference/FluidAudio
