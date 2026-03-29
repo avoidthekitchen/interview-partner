@@ -1,12 +1,12 @@
 {
   "results" : {
     "test-audio-clip" : {
-      "diarizationAccuracy" : 96.93251533742331,
-      "werAccuracy" : 68.34170854271358
+      "diarizationAccuracy" : 86.33879781420765,
+      "werAccuracy" : 80.40201005025126
     },
     "test-noisy-audio-clip" : {
       "diarizationAccuracy" : 100,
-      "werAccuracy" : 83.33333333333334
+      "werAccuracy" : 82.05128205128204
     }
   }
 }

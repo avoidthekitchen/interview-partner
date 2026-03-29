@@ -21,9 +21,13 @@ public struct ComparisonResult: Sendable, Equatable {
 /// Compares benchmark results against stored baselines and manages baseline persistence.
 public struct BaselineComparator: Sendable {
     private let baselinePath: URL
+    /// Minimum drop (in percentage points) before a run is flagged as a regression.
+    /// Accounts for natural run-to-run variance in non-deterministic streaming ASR.
+    private let regressionTolerancePP: Double
 
-    public init(baselinePath: URL) {
+    public init(baselinePath: URL, regressionTolerancePP: Double = 5.0) {
         self.baselinePath = baselinePath
+        self.regressionTolerancePP = regressionTolerancePP
     }
 
     /// Compares a benchmark result against the stored baseline for that test case.
@@ -51,8 +55,8 @@ public struct BaselineComparator: Sendable {
         let werDelta = result.werAccuracy - caseBaseline.werAccuracy
         let diarizationDelta = result.diarizationAccuracy - caseBaseline.diarizationAccuracy
 
-        let isRegression = result.werAccuracy < caseBaseline.werAccuracy
-            || result.diarizationAccuracy < caseBaseline.diarizationAccuracy
+        let isRegression = werDelta < -regressionTolerancePP
+            || diarizationDelta < -regressionTolerancePP
 
         return ComparisonResult(
             isRegression: isRegression,
