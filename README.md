@@ -11,8 +11,15 @@ There are a thousand user interview apps, but this one is mine. This app is inte
 - Optional LLM integration (OpenAI, Anthropic, etc.) to passively monitor the transcript, score question coverage in real time (1–10), and generate a findings summary after the interview wraps
 - iOS and macOS first
 
-<img width="295" height="639" alt="image" src="https://github.com/user-attachments/assets/1b89c679-4092-4f98-96f5-7918b2b04e32" />
-<img width="295" height="639" alt="image" src="https://github.com/user-attachments/assets/ed667f04-7d6f-42fe-a67e-9ac3ec2f4aed" />
+<table>
+  <tr>
+    <td><img width="295" height="639" alt="image" src="https://github.com/user-attachments/assets/1b89c679-4092-4f98-96f5-7918b2b04e32" /></td>
+    <td><img width="295" height="639" alt="image" src="https://github.com/user-attachments/assets/ed667f04-7d6f-42fe-a67e-9ac3ec2f4aed" /></td>
+  </tr>
+</table>
+
+
+
 
 
 ## Current Status
